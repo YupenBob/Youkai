@@ -2,154 +2,231 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>YOUKAI / Kali Agent Web UI</title>
+    <title>YOUKAI — 绝区零风格控制台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              zzz: {
+                bg: '#0a0a0f',
+                card: '#0d0d14',
+                border: '#1f1f2e',
+                magenta: '#e879f9',
+                fuchsia: '#d946ef',
+                violet: '#a855f7',
+                glow: '#f472b6',
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      .zzz-bg { background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 50%, #0a0a0f 100%); }
+      .zzz-card { background: rgba(13,13,20,0.85); border: 1px solid rgba(233,121,249,0.25); box-shadow: 0 0 24px rgba(233,121,249,0.08); }
+      .zzz-glow { box-shadow: 0 0 20px rgba(232,121,249,0.3); }
+      .term-cmd { color: #e879f9; }
+      .term-info { color: #94a3b8; }
+      .term-success { color: #34d399; }
+      .term-warn { color: #fbbf24; }
+      .term-error { color: #f87171; }
+      .youkai-logo { filter: drop-shadow(0 0 12px rgba(232,121,249,0.5)); }
+    </style>
   </head>
-  <body class="min-h-screen bg-slate-950 text-slate-100">
+  <body class="zzz-bg min-h-screen text-slate-100 font-sans antialiased">
     <div class="min-h-screen flex flex-col">
-      <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/40">YK</span>
+      <!-- Header: Youkai 形象 + 标题 -->
+      <header class="border-b border-zzz-border/80 backdrop-blur-sm sticky top-0 z-10" style="background: rgba(10,10,15,0.9);">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div class="flex items-center gap-4">
+            <!-- Youkai 标志：多层圆 + 齿轮外缘 + 光晕 -->
+            <div class="youkai-logo flex-shrink-0">
+              <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="magentaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#e879f9" />
+                    <stop offset="100%" style="stop-color:#d946ef" />
+                  </linearGradient>
+                  <filter id="glow">
+                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                    <feMerge>
+                      <feMergeNode in="coloredBlur"/>
+                      <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                  </filter>
+                </defs>
+                <!-- 外圈齿轮状 -->
+                <circle cx="32" cy="32" r="28" fill="url(#magentaGrad)" opacity="0.9" filter="url(#glow)"/>
+                <!-- 齿轮齿 -->
+                <circle cx="32" cy="32" r="30" fill="none" stroke="url(#magentaGrad)" stroke-width="4" stroke-dasharray="4 6" opacity="0.6"/>
+                <!-- 中环 -->
+                <circle cx="32" cy="32" r="18" fill="none" stroke="#e879f9" stroke-width="2" opacity="0.8"/>
+                <!-- 内芯 -->
+                <circle cx="32" cy="32" r="12" fill="rgba(255,255,255,0.95)"/>
+                <circle cx="32" cy="32" r="6" fill="#e879f9" opacity="0.6"/>
+                <circle cx="32" cy="32" r="2" fill="#fff"/>
+              </svg>
+            </div>
             <div>
-              <h1 class="text-lg font-semibold leading-tight">YOUKAI 控制台</h1>
-              <p class="text-xs text-slate-400">基于 LLM 的红队辅助 · 默认本机执行</p>
+              <h1 class="text-xl font-bold tracking-tight text-white">YOUKAI</h1>
+              <p class="text-xs text-slate-400">红队指令控制台 · 扫描 · 分析 · 利用</p>
             </div>
           </div>
-          <a href="/settings" class="text-sm text-slate-300 hover:text-emerald-400 border border-slate-600 hover:border-emerald-500/50 rounded-lg px-3 py-1.5 transition">设置</a>
+          <a href="/settings" class="text-sm text-slate-400 hover:text-zzz-magenta border border-zzz-border hover:border-zzz-magenta/50 rounded-lg px-3 py-1.5 transition">设置</a>
         </div>
       </header>
 
       {% if need_settings %}
-      <div class="max-w-5xl mx-auto px-4 pt-4">
-        <div class="rounded-lg border border-amber-500/50 bg-amber-500/10 px-4 py-3 text-sm text-amber-200 flex items-center justify-between gap-4">
-          <span>请先在「设置」中配置 LLM API Key（推荐 DeepSeek），保存后即可使用扫描功能。</span>
-          <a href="/settings" class="shrink-0 rounded bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 font-medium text-amber-100">去设置</a>
+      <div class="max-w-7xl mx-auto w-full px-4 pt-3">
+        <div class="zzz-card rounded-lg px-4 py-3 text-sm text-amber-200 flex items-center justify-between gap-4 border-amber-500/30">
+          <span>请先在「设置」中配置 LLM API Key（推荐 DeepSeek），保存后即可与 Youkai 对话并下发指令。</span>
+          <a href="/settings" class="shrink-0 rounded bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 font-medium">去设置</a>
         </div>
       </div>
       {% endif %}
 
-      <main class="flex-1">
-        <div class="max-w-5xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2">
-          <section
-            class="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-emerald-500/5 p-5"
-          >
-            <h2 class="text-base font-semibold mb-4 flex items-center gap-2">
-              <span
-                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-300 text-xs"
-                >1</span
-              >
-              配置扫描任务
-            </h2>
-            {% if error %}
-            <div
-              class="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-200"
-            >
-              {{ error }}
-            </div>
-            {% endif %}
-            <form method="post" class="space-y-4">
-              <div class="space-y-1.5">
-                <label for="goal" class="block text-xs font-medium text-slate-200">渗透目标 (Goal)</label>
-                <textarea
-                  id="goal"
-                  name="goal"
-                  rows="3"
-                  class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/40 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
-                  placeholder="例如：扫描 192.168.1.1 的常见服务，并给出下一步红队行动建议。"
-                  required
-                >{{ goal }}</textarea>
-                <p class="text-[11px] text-slate-400">用自然语言描述你想要完成的渗透测试目标。</p>
-              </div>
-              <div class="space-y-1.5">
-                <label for="target" class="block text-xs font-medium text-slate-200">扫描目标 (Target)</label>
-                <input
-                  id="target"
-                  name="target"
-                  type="text"
-                  value="{{ target }}"
-                  class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/40 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
-                  placeholder="例如：192.168.1.1 或 10.0.0.0/24"
-                  required
-                />
-                <p class="text-[11px] text-slate-400">实际要扫描的 IP 地址或网段。</p>
-              </div>
-              <div class="space-y-1.5">
-                <label for="nmap_arguments" class="block text-xs font-medium text-slate-200">Nmap 参数</label>
-                <input
-                  id="nmap_arguments"
-                  name="nmap_arguments"
-                  type="text"
-                  value="{{ nmap_arguments }}"
-                  class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/40 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
-                  placeholder="-sV -Pn -p 1-1000"
-                />
-                <p class="text-[11px] text-slate-400">默认 <code class="font-mono text-emerald-300">-sV -Pn</code>，可调整端口范围等。</p>
-              </div>
-              <div class="pt-2 flex items-center justify-between">
-                <p class="text-[11px] text-slate-500 max-w-[70%]">
-                  当前版本<span class="font-semibold text-emerald-300">仅执行信息收集与分析</span>，不会自动运行 Exploit。
-                </p>
-                <button
-                  type="submit"
-                  class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-4 py-2 text-xs font-semibold text-slate-950 shadow-lg shadow-emerald-500/40 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950 transition"
-                >
-                  <span>开始扫描与分析</span>
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section
-            class="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-emerald-500/5 p-5 flex flex-col"
-          >
-            <h2 class="text-base font-semibold mb-3 flex items-center gap-2">
-              <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/15 text-sky-300 text-xs">2</span>
-              结果与 HUMAN_CHECK
-            </h2>
-            {% if not result %}
-            <div class="flex-1 flex items-center justify-center text-xs text-slate-500 text-center border border-dashed border-slate-700 rounded-xl px-4">
-              <p>填写左侧任务信息并点击<span class="font-semibold text-emerald-300">开始扫描与分析</span>，这里将展示侦察结果、分析结论与 HUMAN_CHECK 说明。</p>
-            </div>
-            {% else %}
-            <div class="space-y-4 text-xs overflow-y-auto max-h-[70vh] pr-1">
-              {% if result.recon_result %}
-              <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">侦察结果 (Nmap 摘要)</h3>
-                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto">{{ result.recon_result }}</pre>
-              </div>
-              {% endif %}
-              {% if result.analysis %}
-              <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">LLM 分析 (红队视角)</h3>
-                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto">{{ result.analysis }}</pre>
-              </div>
-              {% endif %}
-              {% if result.decision %}
-              <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">决策 (JSON)</h3>
-                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-emerald-200 overflow-auto">{{ result.decision }}</pre>
-              </div>
-              {% endif %}
-              {% if result.human_check_message %}
-              <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">HUMAN_CHECK 说明</h3>
-                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-emerald-600/70 px-3 py-2 font-mono text-[11px] text-emerald-100 overflow-auto">{{ result.human_check_message }}</pre>
-              </div>
-              {% endif %}
-            </div>
-            {% endif %}
-          </section>
-        </div>
+      <!-- 数据窗口网格 -->
+      <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <section class="zzz-card rounded-xl p-4" id="panel-local">
+          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">本机性能</h3>
+          <pre class="text-xs text-slate-400 font-mono" id="panel-local-content">— 下达指令后刷新 —</pre>
+        </section>
+        <section class="zzz-card rounded-xl p-4" id="panel-target">
+          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">目标情况</h3>
+          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap" id="panel-target-content">— 下达指令后刷新 —</pre>
+        </section>
+        <section class="zzz-card rounded-xl p-4" id="panel-ports">
+          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">目标端口</h3>
+          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap max-h-32 overflow-auto" id="panel-ports-content">— 下达指令后刷新 —</pre>
+        </section>
+        <section class="zzz-card rounded-xl p-4" id="panel-tracking">
+          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">实施跟踪</h3>
+          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap" id="panel-tracking-content">— 下达指令后刷新 —</pre>
+        </section>
+        <section class="zzz-card rounded-xl p-4 md:col-span-2" id="panel-report">
+          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">Youkai 报告</h3>
+          <pre class="text-xs text-slate-300 font-mono whitespace-pre-wrap max-h-48 overflow-auto" id="panel-report-content">— 下达指令后刷新 —</pre>
+        </section>
       </main>
 
-      <footer class="border-t border-slate-800 bg-slate-950/90">
-        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between text-[11px] text-slate-500">
-          <p>YOUKAI · 仅用于授权环境内的安全测试与攻防演练，请遵守相关法律与合规要求。</p>
-          <p>多 LLM 支持 (OpenAI / Anthropic / Gemini / DeepSeek) · 默认本机执行 · LangGraph</p>
+      <!-- 终端风格输出 -->
+      <div class="max-w-7xl w-full mx-auto px-4 pb-2">
+        <div class="zzz-card rounded-xl overflow-hidden">
+          <div class="px-3 py-1.5 border-b border-zzz-border text-xs text-slate-500 font-mono">TERMINAL — Kali-style output</div>
+          <pre class="p-3 font-mono text-xs overflow-auto max-h-56 bg-black/40" id="terminal-output"><span class="term-info">等待指令… 例如：扫描 192.168.1.1</span></pre>
+        </div>
+      </div>
+
+      <!-- 底部：与 Youkai 对话 -->
+      <footer class="border-t border-zzz-border/80 sticky bottom-0 z-10" style="background: rgba(10,10,15,0.95);">
+        <div class="max-w-7xl mx-auto px-4 py-3">
+          <form id="command-form" class="flex gap-2">
+            <input
+              type="text"
+              id="command-input"
+              placeholder="与 Youkai 对话：扫描 192.168.1.1 / 对 http://target/sql.php 进行 SQL 注入检测…"
+              class="flex-1 rounded-lg border border-zzz-border bg-zzz-card px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-zzz-magenta focus:outline-none focus:ring-1 focus:ring-zzz-magenta"
+              autocomplete="off"
+            />
+            <button
+              type="submit"
+              id="command-submit"
+              class="rounded-lg bg-zzz-magenta/90 hover:bg-zzz-magenta px-5 py-2.5 text-sm font-semibold text-white zzz-glow transition disabled:opacity-50"
+            >
+              发送
+            </button>
+          </form>
+          <p class="text-[11px] text-slate-500 mt-1.5">指令将驱动 RECON → 分析 → 决策；高危利用需在报告中确认后单独执行。</p>
+          <div class="mt-3 pt-3 border-t border-zzz-border/60 flex flex-wrap items-center gap-2">
+            <span class="text-xs text-slate-500">执行利用（需人工确认）：</span>
+            <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="rounded border border-zzz-border bg-zzz-card px-3 py-1.5 text-xs text-white placeholder-slate-500 w-64 max-w-full" />
+            <button type="button" id="exploit-sqlmap" class="rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 px-3 py-1.5 text-xs font-medium">SQL 注入检测 (sqlmap)</button>
+          </div>
         </div>
       </footer>
     </div>
+
+    <script>
+      const form = document.getElementById('command-form');
+      const input = document.getElementById('command-input');
+      const submitBtn = document.getElementById('command-submit');
+      const terminal = document.getElementById('terminal-output');
+
+      function appendTerminal(lines) {
+        const frag = document.createDocumentFragment();
+        lines.forEach(function(line) {
+          const span = document.createElement('span');
+          span.className = 'term-' + (line.type || 'info');
+          span.textContent = line.text + '\n';
+          frag.appendChild(span);
+        });
+        terminal.appendChild(frag);
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      function setPanel(id, text) {
+        const el = document.getElementById('panel-' + id + '-content');
+        if (el) el.textContent = text || '—';
+      }
+
+      function setPanels(panels) {
+        if (!panels) return;
+        const ls = panels.local_stats;
+        if (ls) setPanel('local', 'CPU: ' + (ls.cpu_percent ?? 0) + '%\n内存: ' + (ls.mem_percent ?? 0) + '% (' + (ls.mem_used_gb ?? 0) + '/' + (ls.mem_total_gb ?? 0) + ' GB)');
+        const ti = panels.target_info;
+        if (ti) setPanel('target', 'Goal: ' + (ti.goal || '') + '\nTarget: ' + (ti.target || ''));
+        setPanel('ports', panels.ports);
+        setPanel('tracking', panels.tracking);
+        setPanel('report', panels.report);
+      }
+
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const msg = (input.value || '').trim();
+        if (!msg) return;
+        submitBtn.disabled = true;
+        terminal.innerHTML = '';
+        appendTerminal([{ type: 'cmd', text: '[YOUKAI] ' + msg }]);
+
+        try {
+          const res = await fetch('/api/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg })
+          });
+          const data = await res.json();
+          if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
+          if (data.panels) setPanels(data.panels);
+          if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '请求失败' }]);
+        } catch (err) {
+          appendTerminal([{ type: 'error', text: err.message || '网络错误' }]);
+        }
+        submitBtn.disabled = false;
+      });
+
+      document.getElementById('exploit-sqlmap').addEventListener('click', async function() {
+        const url = (document.getElementById('exploit-url').value || '').trim();
+        if (!url) { appendTerminal([{ type: 'warn', text: '[EXPLOIT] 请先输入目标 URL' }]); return; }
+        terminal.innerHTML = '';
+        appendTerminal([{ type: 'cmd', text: '[EXPLOIT] sqlmap -u ' + url }]);
+        submitBtn.disabled = true;
+        try {
+          const res = await fetch('/api/execute_exploit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'sqlmap', payload: { url: url } })
+          });
+          const data = await res.json();
+          if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
+          if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '执行失败' }]);
+        } catch (err) {
+          appendTerminal([{ type: 'error', text: err.message }]);
+        }
+        submitBtn.disabled = false;
+      });
+    </script>
   </body>
 </html>

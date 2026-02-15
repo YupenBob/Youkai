@@ -3,17 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from config.runtime import load_runtime_settings, save_runtime_settings
 from core.agent import create_kali_agent
-
+from tools.exploitation import run_dangerous_command
+from web.api_handlers import (
+    build_panels,
+    build_terminal_lines,
+    get_local_stats,
+    parse_goal_target_from_message,
+)
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 
 app = FastAPI(title="YOUKAI / Kali Agent Web UI", version="0.1.0")
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "web" / "static")), name="static")
 
 _agent_cache = None
 
@@ -45,6 +53,82 @@ def has_llm_configured() -> bool:
         or settings.google_gemini_api_key
         or settings.deepseek_api_key
     )
+
+
+@app.post("/api/command")
+async def api_command(request: Request) -> JSONResponse:
+    """与 Youkai 对话：下发扫描/攻击指令，返回数据窗口与终端流。"""
+    try:
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    except Exception:
+        body = {}
+    message = (body.get("message") or "").strip()
+    if not message:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "请输入指令内容"},
+        )
+    if not has_llm_configured():
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "请先在「设置」中配置 LLM API Key"},
+        )
+
+    goal, target, nmap_arguments = parse_goal_target_from_message(message)
+    if not target:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "未从指令中识别到目标 IP 或域名，请写明例如：扫描 192.168.1.1"},
+        )
+
+    try:
+        agent = get_agent()
+        state = agent.invoke(
+            {"goal": goal, "target": target, "nmap_arguments": nmap_arguments}
+        )
+    except Exception as exc:  # noqa: BLE001
+        return JSONResponse(
+            status_code=500,
+            content={
+                "ok": False,
+                "error": str(exc),
+                "panels": {"local_stats": get_local_stats(), "target_info": {}, "ports": "", "tracking": "", "report": ""},
+                "terminal": [{"type": "error", "text": str(exc)}],
+            },
+        )
+
+    local_stats = get_local_stats()
+    panels = build_panels(state, local_stats)
+    terminal = build_terminal_lines(state)
+    return JSONResponse(
+        content={
+            "ok": True,
+            "panels": panels,
+            "terminal": terminal,
+        },
+    )
+
+
+@app.post("/api/execute_exploit")
+async def api_execute_exploit(request: Request) -> JSONResponse:
+    """人工确认后执行利用（如 sqlmap）。请求体: {"action": "sqlmap", "url": "http://..."}。"""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "无效 JSON"})
+    action = (body.get("action") or "").strip().lower()
+    if action not in ("sqlmap",):
+        return JSONResponse(status_code=400, content={"ok": False, "error": "仅支持 action: sqlmap"})
+    payload = body.get("payload") or body
+    code, out, err = run_dangerous_command(action, payload)
+    terminal = [
+        {"type": "cmd", "text": f"[EXPLOIT] {action} 已执行"},
+        {"type": "error" if code != 0 else "success", "text": err or out or f"退出码 {code}"},
+    ]
+    for line in (out or "").splitlines()[:50]:
+        if line.strip():
+            terminal.append({"type": "info", "text": line.strip()})
+    return JSONResponse(content={"ok": code == 0, "terminal": terminal, "exit_code": code})
 
 
 @app.get("/", response_class=HTMLResponse)
