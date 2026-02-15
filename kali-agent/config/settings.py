@@ -36,6 +36,10 @@ class Settings(BaseSettings):
         default=120,
         description="KaliSandbox 中命令默认超时时间（秒）",
     )
+    sandbox_mode: str = Field(
+        default="docker",
+        description="沙箱模式：'docker' 在容器中执行，'local' 在本机（如 Kali 虚拟机）直接执行",
+    )
 
     class Config:
         env_prefix = "KALI_AGENT_"

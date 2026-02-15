@@ -5,10 +5,10 @@ from typing import Optional
 
 from langchain_core.tools import tool
 
-from core.sandbox import CommandTimeoutError, KaliSandbox
+from core.sandbox import CommandTimeoutError, get_sandbox
 
 
-_sandbox = KaliSandbox()
+_sandbox = get_sandbox()
 
 
 def _build_nmap_command(target: str, arguments: Optional[str]) -> list[str]:
@@ -54,7 +54,7 @@ def _filter_nmap_output(raw: str) -> str:
 
 @tool("nmap_scan", return_direct=False)
 def nmap_scan(target: str, arguments: str = "-sV -Pn") -> str:
-    """在 Kali Docker 沙箱中运行 Nmap。
+    """在沙箱中运行 Nmap（Docker 或本机模式由 KALI_AGENT_SANDBOX_MODE 决定）。
 
     参数:
         target: 目标 IP / 域名 / CIDR，例如 "192.168.1.1" 或 "10.0.0.0/24"

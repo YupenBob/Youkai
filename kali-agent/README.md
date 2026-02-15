@@ -29,13 +29,14 @@ kali-agent/
 pip install -r requirements.txt
 ```
 
-2. 确保本机已安装 Docker，并提前拉取 Kali 镜像：
+2. 选择沙箱模式（二选一）：
 
-```bash
-docker pull kalilinux/kali-rolling
-```
+   - **Docker 模式（默认）**：需安装 Docker 并拉取 Kali 镜像  
+     `docker pull kalilinux/kali-rolling`
+   - **本机模式（无需 Docker）**：在 Kali 虚拟机或已安装 `nmap` 的 Linux 上直接执行。设置环境变量：  
+     `export KALI_AGENT_SANDBOX_MODE=local`
 
-3. 运行简单 Nmap 演示（会在 Kali 容器中执行）：
+3. 运行简单 Nmap 演示：
 
 ```bash
 python main.py
