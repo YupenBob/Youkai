@@ -21,6 +21,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 
+from config.runtime import get_effective_llm_config
 from config.settings import settings
 from tools.scanning import nmap_scan
 
@@ -55,7 +56,28 @@ class KaliAgentState(TypedDict, total=False):
 
 
 def create_llm() -> BaseChatModel:
-    """根据环境变量选择 LLM，优先级：OpenAI > Anthropic > Gemini > DeepSeek。"""
+    """优先使用 Web UI 保存的配置，否则按环境变量：OpenAI > Anthropic > Gemini > DeepSeek。"""
+    provider, api_key = get_effective_llm_config()
+    if provider and api_key:
+        if provider == "openai":
+            return ChatOpenAI(model="gpt-4o", temperature=0.2, api_key=api_key)
+        if provider == "anthropic":
+            return ChatAnthropic(model="claude-3-5-sonnet-20241022", temperature=0.2, api_key=api_key)
+        if provider == "gemini":
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            return ChatGoogleGenerativeAI(
+                model="gemini-1.5-flash",
+                temperature=0.2,
+                google_api_key=api_key,
+            )
+        if provider == "deepseek":
+            return ChatOpenAI(
+                model="deepseek-chat",
+                temperature=0.2,
+                openai_api_key=api_key,
+                openai_api_base="https://api.deepseek.com",
+            )
+
     if settings.openai_api_key:
         return ChatOpenAI(model="gpt-4o", temperature=0.2)
     if settings.anthropic_api_key:
@@ -76,9 +98,7 @@ def create_llm() -> BaseChatModel:
         )
 
     raise RuntimeError(
-        "未检测到可用的 LLM API Key。请配置其一："
-        " KALI_AGENT_OPENAI_API_KEY / KALI_AGENT_ANTHROPIC_API_KEY / "
-        "KALI_AGENT_GOOGLE_GEMINI_API_KEY / KALI_AGENT_DEEPSEEK_API_KEY"
+        "未检测到可用的 LLM API Key。请到 Web 界面「设置」中配置，或设置环境变量。"
     )
 
 

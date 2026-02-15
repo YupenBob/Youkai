@@ -1,48 +1,66 @@
 # YOUKAI
 
-基于 LLM 的红队辅助 Agent，默认在**本机（如 Kali 虚拟机）**执行 Nmap 等工具，支持 Docker 沙箱可选。支持多种 LLM：OpenAI、Anthropic、Google Gemini、DeepSeek。
+基于 LLM 的红队辅助 Agent，默认在**本机（如 Kali 虚拟机）**执行 Nmap，支持多种 LLM（OpenAI / Anthropic / Gemini / DeepSeek）。**到手即用**：启动 Web UI 后到「设置」里选模型、填 API Key 即可，无需改环境变量。
+
+---
+
+## 一条龙启动（推荐）
+
+克隆后执行一条命令完成安装并启动 Web UI：
+
+```bash
+chmod +x install_and_run.sh
+./install_and_run.sh
+```
+
+浏览器打开 **http://127.0.0.1:8000**，进入 **设置** → 选择 LLM（推荐 DeepSeek）→ 填写 API Key → 保存，即可在首页使用扫描。
+
+若尚未克隆，可直接传入仓库地址（脚本会先克隆再安装并启动）：
+
+```bash
+./install_and_run.sh https://github.com/你的用户名/youkai.git
+```
+
+---
+
+## 手动安装
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn web.app:app --host 0.0.0.0 --port 8000
+```
+
+同样先打开 Web 界面，在 **设置** 中配置 API Key 与运行方式（本机 / Docker）。
+
+---
+
+## 在 Web 里能改什么
+
+- **LLM 模型**：OpenAI、Anthropic、Gemini、DeepSeek 任选一个，填对应 API Key。
+- **运行方式**：本机执行（默认，无需 Docker）或 Docker 容器。
+
+配置保存在本机 `config/runtime_settings.json`，不提交 Git；保存后下次请求自动生效，无需重启服务。
+
+---
 
 ## 目录结构
 
 ```text
 youkai/
+├── install_and_run.sh     # 一条龙脚本
 ├── main.py                # CLI 入口
 ├── core/
-│   ├── agent.py           # LangGraph 状态机与多 LLM 接入
-│   └── sandbox.py         # 本机 / Docker 沙箱
+│   ├── agent.py
+│   └── sandbox.py
 ├── tools/
-│   ├── base.py
-│   ├── scanning.py        # Nmap Tool
-│   └── exploitation.py    # 高危工具占位
 ├── config/
-│   └── settings.py        # API Key、沙箱模式等
-├── prompts/
-│   └── system_prompt.txt
+│   └── settings.py
 ├── web/
-│   ├── app.py             # FastAPI Web UI
+│   ├── app.py
 │   └── templates/
-│       └── index.html
 └── requirements.txt
 ```
 
-## 环境变量（前缀 KALI_AGENT_）
-
-- **LLM（任选其一）**  
-  - `KALI_AGENT_OPENAI_API_KEY`  
-  - `KALI_AGENT_ANTHROPIC_API_KEY`  
-  - `KALI_AGENT_GOOGLE_GEMINI_API_KEY`  
-  - `KALI_AGENT_DEEPSEEK_API_KEY`
-- **沙箱**  
-  - `KALI_AGENT_SANDBOX_MODE`：`local`（默认，本机执行）/ `docker`
-
-## 快速开始
-
-1. 安装依赖：`pip install -r requirements.txt`
-2. 配置至少一个 LLM Key（环境变量或项目根目录 `.env`）
-3. 默认为本机模式，无需 Docker；若用 Docker 模式需安装 Docker 并设置 `KALI_AGENT_SANDBOX_MODE=docker`
-4. 启动 Web UI：`uvicorn web.app:app --reload --host 0.0.0.0 --port 8000`  
-   或 CLI：`python main.py`
-
-## LLM 优先级
-
-Agent 按以下顺序选用第一个已配置的 Key：**OpenAI → Anthropic → Gemini → DeepSeek**。
+环境变量（可选，与 Web 设置二选一）：`KALI_AGENT_OPENAI_API_KEY`、`KALI_AGENT_DEEPSEEK_API_KEY`、`KALI_AGENT_SANDBOX_MODE` 等，前缀 `KALI_AGENT_`。

@@ -8,9 +8,6 @@ from langchain_core.tools import tool
 from core.sandbox import CommandTimeoutError, get_sandbox
 
 
-_sandbox = get_sandbox()
-
-
 def _build_nmap_command(target: str, arguments: Optional[str]) -> list[str]:
     if not target:
         raise ValueError("Nmap 扫描目标不能为空")
@@ -46,8 +43,9 @@ def _filter_nmap_output(raw: str) -> str:
 def nmap_scan(target: str, arguments: str = "-sV -Pn") -> str:
     """在沙箱中运行 Nmap（默认本机，可由 KALI_AGENT_SANDBOX_MODE 切换 Docker）。"""
     cmd = _build_nmap_command(target, arguments)
+    sandbox = get_sandbox()
     try:
-        result = _sandbox.run(cmd, timeout=300)
+        result = sandbox.run(cmd, timeout=300)
     except CommandTimeoutError:
         return "Nmap 扫描在 300 秒内未完成，已被沙箱超时终止。请缩小扫描范围或调整参数后重试。"
     except Exception as exc:  # noqa: BLE001

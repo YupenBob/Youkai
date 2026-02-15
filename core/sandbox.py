@@ -7,6 +7,7 @@ import threading
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
+from config.runtime import get_effective_sandbox_mode
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
@@ -208,8 +209,8 @@ class KaliSandbox:
 
 
 def get_sandbox() -> Union[KaliSandbox, LocalSandbox]:
-    """根据配置返回沙箱。默认 local（本机），可选 docker。"""
-    mode = (settings.sandbox_mode or "local").strip().lower()
+    """根据配置返回沙箱（优先 Web UI 保存的配置）。"""
+    mode = get_effective_sandbox_mode()
     if mode == "docker":
         return KaliSandbox()
     return LocalSandbox()

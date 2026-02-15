@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>设置 - YOUKAI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100">
+    <div class="min-h-screen flex flex-col">
+      <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur">
+        <div class="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <a href="/" class="flex items-center gap-2 text-slate-300 hover:text-white">
+            <span class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/40">YK</span>
+            <span class="text-lg font-semibold">YOUKAI</span>
+          </a>
+          <a href="/" class="text-xs text-slate-400 hover:text-slate-200">← 返回控制台</a>
+        </div>
+      </header>
+
+      <main class="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+        <h1 class="text-xl font-semibold mb-2">设置</h1>
+        <p class="text-sm text-slate-400 mb-6">配置 LLM 与运行方式，保存后立即生效，无需重启。</p>
+
+        {% if saved %}
+        <div class="mb-6 rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+          已保存，下次扫描将使用新配置。
+        </div>
+        {% endif %}
+
+        <form method="post" action="/settings" class="space-y-6">
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+            <h2 class="text-sm font-semibold text-slate-200">LLM 模型</h2>
+            <p class="text-xs text-slate-400">任选其一并填写对应 API Key，推荐小白使用 DeepSeek（便宜、国内可用）。</p>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-2">选择模型</label>
+              <select
+                name="llm_provider"
+                class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+              >
+                <option value="deepseek" {{ 'selected' if llm_provider == 'deepseek' }}>DeepSeek（推荐，国内可用）</option>
+                <option value="openai" {{ 'selected' if llm_provider == 'openai' }}>OpenAI（GPT-4o）</option>
+                <option value="anthropic" {{ 'selected' if llm_provider == 'anthropic' }}>Anthropic（Claude）</option>
+                <option value="gemini" {{ 'selected' if llm_provider == 'gemini' }}>Google Gemini</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-2">API Key</label>
+              <input
+                type="password"
+                name="api_key"
+                placeholder="{{ api_key_placeholder }}"
+                autocomplete="off"
+                class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
+              />
+              <p class="mt-1 text-[11px] text-slate-500">Key 仅保存在本机 config/runtime_settings.json，不会上传。</p>
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 space-y-4">
+            <h2 class="text-sm font-semibold text-slate-200">运行方式</h2>
+            <div class="flex gap-4">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="sandbox_mode" value="local" {{ 'checked' if sandbox_mode == 'local' }} class="rounded border-slate-600 text-emerald-500 focus:ring-emerald-500" />
+                <span class="text-sm">本机执行（默认，无需 Docker）</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="sandbox_mode" value="docker" {{ 'checked' if sandbox_mode == 'docker' }} class="rounded border-slate-600 text-emerald-500 focus:ring-emerald-500" />
+                <span class="text-sm">Docker 容器</span>
+              </label>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="w-full rounded-lg bg-emerald-500 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-950"
+          >
+            保存设置
+          </button>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>
