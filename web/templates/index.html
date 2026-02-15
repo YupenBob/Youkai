@@ -2,163 +2,209 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>YOUKAI — 绝区零风格控制台</title>
+    <title>YOUKAI — Kali 风格控制台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              zzz: {
-                bg: '#0a0a0f',
-                card: '#0d0d14',
-                border: '#1f1f2e',
-                magenta: '#e879f9',
-                fuchsia: '#d946ef',
-                violet: '#a855f7',
-                glow: '#f472b6',
-              }
-            }
-          }
-        }
-      }
-    </script>
     <style>
       .zzz-bg { background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 50%, #0a0a0f 100%); }
-      .zzz-card { background: rgba(13,13,20,0.85); border: 1px solid rgba(233,121,249,0.25); box-shadow: 0 0 24px rgba(233,121,249,0.08); }
-      .zzz-glow { box-shadow: 0 0 20px rgba(232,121,249,0.3); }
       .term-cmd { color: #e879f9; }
       .term-info { color: #94a3b8; }
       .term-success { color: #34d399; }
       .term-warn { color: #fbbf24; }
       .term-error { color: #f87171; }
       .youkai-logo { filter: drop-shadow(0 0 12px rgba(232,121,249,0.5)); }
+      /* Kali 窗口 */
+      .kali-window {
+        position: absolute;
+        min-width: 200px;
+        min-height: 120px;
+        background: #1e1e2e;
+        border: 1px solid #45475a;
+        border-radius: 8px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .kali-window-title {
+        height: 28px;
+        background: #313244;
+        border-bottom: 1px solid #45475a;
+        display: flex;
+        align-items: center;
+        padding-left: 8px;
+        gap: 6px;
+        cursor: move;
+        user-select: none;
+      }
+      .kali-window-title .btn { width: 12px; height: 12px; border-radius: 50%; }
+      .kali-window-title .btn-close { background: #f38ba8; }
+      .kali-window-title .btn-min { background: #f9e2af; }
+      .kali-window-title .btn-max { background: #a6e3a1; }
+      .kali-window-title .name { margin-left: 6px; font-size: 11px; color: #cdd6f4; }
+      .kali-window-body { flex: 1; overflow: auto; padding: 8px; font-size: 11px; font-family: monospace; color: #a6adc8; }
+      .kali-window-body pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+      .kali-window-resize {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 16px;
+        height: 16px;
+        cursor: nwse-resize;
+        background: linear-gradient(135deg, transparent 50%, #45475a 50%);
+      }
     </style>
   </head>
   <body class="zzz-bg min-h-screen text-slate-100 font-sans antialiased">
     <div class="min-h-screen flex flex-col">
-      <!-- Header: Youkai 形象 + 标题 -->
-      <header class="border-b border-zzz-border/80 backdrop-blur-sm sticky top-0 z-10" style="background: rgba(10,10,15,0.9);">
-        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <!-- Youkai 标志：多层圆 + 齿轮外缘 + 光晕 -->
-            <div class="youkai-logo flex-shrink-0">
-              <svg width="48" height="48" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <defs>
-                  <linearGradient id="magentaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" style="stop-color:#e879f9" />
-                    <stop offset="100%" style="stop-color:#d946ef" />
-                  </linearGradient>
-                  <filter id="glow">
-                    <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-                    <feMerge>
-                      <feMergeNode in="coloredBlur"/>
-                      <feMergeNode in="SourceGraphic"/>
-                    </feMerge>
-                  </filter>
-                </defs>
-                <!-- 外圈齿轮状 -->
-                <circle cx="32" cy="32" r="28" fill="url(#magentaGrad)" opacity="0.9" filter="url(#glow)"/>
-                <!-- 齿轮齿 -->
-                <circle cx="32" cy="32" r="30" fill="none" stroke="url(#magentaGrad)" stroke-width="4" stroke-dasharray="4 6" opacity="0.6"/>
-                <!-- 中环 -->
-                <circle cx="32" cy="32" r="18" fill="none" stroke="#e879f9" stroke-width="2" opacity="0.8"/>
-                <!-- 内芯 -->
-                <circle cx="32" cy="32" r="12" fill="rgba(255,255,255,0.95)"/>
-                <circle cx="32" cy="32" r="6" fill="#e879f9" opacity="0.6"/>
-                <circle cx="32" cy="32" r="2" fill="#fff"/>
-              </svg>
+      <header class="border-b border-slate-800 flex-shrink-0" style="background: rgba(10,10,15,0.95);">
+        <div class="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="youkai-logo">
+              <svg width="36" height="36" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" fill="url(#mg)" opacity="0.9"/><circle cx="32" cy="32" r="12" fill="rgba(255,255,255,0.9)"/><defs><linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e879f9"/><stop offset="1" stop-color="#d946ef"/></linearGradient></defs></svg>
             </div>
-            <div>
-              <h1 class="text-xl font-bold tracking-tight text-white">YOUKAI</h1>
-              <p class="text-xs text-slate-400">红队指令控制台 · 扫描 · 分析 · 利用</p>
-            </div>
+            <span class="font-bold text-white">YOUKAI</span>
           </div>
-          <a href="/settings" class="text-sm text-slate-400 hover:text-zzz-magenta border border-zzz-border hover:border-zzz-magenta/50 rounded-lg px-3 py-1.5 transition">设置</a>
+          <a href="/settings" class="text-xs text-slate-400 hover:text-fuchsia-400 px-2 py-1 rounded border border-slate-600">设置</a>
         </div>
       </header>
 
       {% if need_settings %}
-      <div class="max-w-7xl mx-auto w-full px-4 pt-3">
-        <div class="zzz-card rounded-lg px-4 py-3 text-sm text-amber-200 flex items-center justify-between gap-4 border-amber-500/30">
-          <span>请先在「设置」中配置 LLM API Key（推荐 DeepSeek），保存后即可与 Youkai 对话并下发指令。</span>
-          <a href="/settings" class="shrink-0 rounded bg-amber-500/20 hover:bg-amber-500/30 px-3 py-1.5 font-medium">去设置</a>
+      <div class="max-w-7xl mx-auto w-full px-4 py-2">
+        <div class="rounded border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 flex justify-between items-center">
+          <span>请先在「设置」中配置 LLM API Key</span>
+          <a href="/settings" class="text-amber-300 font-medium">去设置</a>
         </div>
       </div>
       {% endif %}
 
-      <!-- 数据窗口网格 -->
-      <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-        <section class="zzz-card rounded-xl p-4" id="panel-local">
-          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">本机性能</h3>
-          <pre class="text-xs text-slate-400 font-mono" id="panel-local-content">— 下达指令后刷新 —</pre>
-        </section>
-        <section class="zzz-card rounded-xl p-4" id="panel-target">
-          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">目标情况</h3>
-          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap" id="panel-target-content">— 下达指令后刷新 —</pre>
-        </section>
-        <section class="zzz-card rounded-xl p-4" id="panel-ports">
-          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">目标端口</h3>
-          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap max-h-32 overflow-auto" id="panel-ports-content">— 下达指令后刷新 —</pre>
-        </section>
-        <section class="zzz-card rounded-xl p-4" id="panel-tracking">
-          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">实施跟踪</h3>
-          <pre class="text-xs text-slate-400 font-mono whitespace-pre-wrap" id="panel-tracking-content">— 下达指令后刷新 —</pre>
-        </section>
-        <section class="zzz-card rounded-xl p-4 md:col-span-2" id="panel-report">
-          <h3 class="text-xs font-semibold text-zzz-magenta uppercase tracking-wider mb-2">Youkai 报告</h3>
-          <pre class="text-xs text-slate-300 font-mono whitespace-pre-wrap max-h-48 overflow-auto" id="panel-report-content">— 下达指令后刷新 —</pre>
-        </section>
-      </main>
-
-      <!-- 终端风格输出 -->
-      <div class="max-w-7xl w-full mx-auto px-4 pb-2">
-        <div class="zzz-card rounded-xl overflow-hidden">
-          <div class="px-3 py-1.5 border-b border-zzz-border text-xs text-slate-500 font-mono">TERMINAL — Kali-style output</div>
-          <pre class="p-3 font-mono text-xs overflow-auto max-h-56 bg-black/40" id="terminal-output"><span class="term-info">等待指令… 例如：扫描 192.168.1.1</span></pre>
+      <!-- 桌面：可拖动、可调整大小的 Kali 窗口 -->
+      <div id="desktop" class="flex-1 relative overflow-hidden" style="min-height: 400px;">
+        <div class="kali-window" id="win-local" style="left: 12px; top: 12px; width: 260px; height: 160px;" data-window="local">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">本机性能</span></div>
+          <div class="kali-window-body"><pre id="panel-local-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-resize" title="拖动调整大小"></div>
+        </div>
+        <div class="kali-window" id="win-target" style="left: 284px; top: 12px; width: 260px; height: 160px;" data-window="target">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">目标情况</span></div>
+          <div class="kali-window-body"><pre id="panel-target-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-resize"></div>
+        </div>
+        <div class="kali-window" id="win-ports" style="left: 556px; top: 12px; width: 260px; height: 160px;" data-window="ports">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">目标端口</span></div>
+          <div class="kali-window-body"><pre id="panel-ports-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-resize"></div>
+        </div>
+        <div class="kali-window" id="win-tracking" style="left: 12px; top: 184px; width: 260px; height: 140px;" data-window="tracking">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">实施跟踪</span></div>
+          <div class="kali-window-body"><pre id="panel-tracking-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-resize"></div>
+        </div>
+        <div class="kali-window" id="win-report" style="left: 284px; top: 184px; width: 532px; height: 200px;" data-window="report">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Youkai 报告</span></div>
+          <div class="kali-window-body"><pre id="panel-report-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-resize"></div>
+        </div>
+        <div class="kali-window" id="win-terminal" style="left: 12px; top: 336px; width: 600px; height: 220px;" data-window="terminal">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">TERMINAL — Kali 输出</span></div>
+          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 flex-1"><pre id="terminal-output" class="m-0"><span class="term-info">等待指令… 例如：扫描 192.168.1.1</span></pre></div>
+          <div class="kali-window-resize"></div>
+        </div>
+        <div class="kali-window" id="win-tools" style="left: 624px; top: 12px; width: 320px; height: 380px;" data-window="tools">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Kali 工具</span></div>
+          <div class="kali-window-body overflow-auto" id="tools-list">
+            <p class="text-slate-500 text-xs mb-2">加载中…</p>
+          </div>
+          <div class="kali-window-resize"></div>
         </div>
       </div>
 
-      <!-- 底部：与 Youkai 对话 -->
-      <footer class="border-t border-zzz-border/80 sticky bottom-0 z-10" style="background: rgba(10,10,15,0.95);">
-        <div class="max-w-7xl mx-auto px-4 py-3">
-          <form id="command-form" class="flex gap-2">
-            <input
-              type="text"
-              id="command-input"
-              placeholder="与 Youkai 对话：扫描 192.168.1.1 / 对 http://target/sql.php 进行 SQL 注入检测…"
-              class="flex-1 rounded-lg border border-zzz-border bg-zzz-card px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-zzz-magenta focus:outline-none focus:ring-1 focus:ring-zzz-magenta"
-              autocomplete="off"
-            />
-            <button
-              type="submit"
-              id="command-submit"
-              class="rounded-lg bg-zzz-magenta/90 hover:bg-zzz-magenta px-5 py-2.5 text-sm font-semibold text-white zzz-glow transition disabled:opacity-50"
-            >
-              发送
-            </button>
-          </form>
-          <p class="text-[11px] text-slate-500 mt-1.5">指令将驱动 RECON → 分析 → 决策；高危利用需在报告中确认后单独执行。</p>
-          <div class="mt-3 pt-3 border-t border-zzz-border/60 flex flex-wrap items-center gap-2">
-            <span class="text-xs text-slate-500">执行利用（需人工确认）：</span>
-            <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="rounded border border-zzz-border bg-zzz-card px-3 py-1.5 text-xs text-white placeholder-slate-500 w-64 max-w-full" />
-            <button type="button" id="exploit-sqlmap" class="rounded bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-300 px-3 py-1.5 text-xs font-medium">SQL 注入检测 (sqlmap)</button>
-          </div>
+      <footer class="flex-shrink-0 border-t border-slate-800 px-4 py-2" style="background: rgba(10,10,15,0.95);">
+        <form id="command-form" class="flex gap-2 items-center">
+          <input type="text" id="command-input" placeholder="与 Youkai 对话：扫描 192.168.1.1 …" class="flex-1 rounded border border-slate-600 bg-slate-900/80 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none" autocomplete="off" />
+          <button type="submit" id="command-submit" class="rounded bg-fuchsia-600 hover:bg-fuchsia-500 px-4 py-2 text-sm font-medium text-white">发送</button>
+        </form>
+        <div class="mt-2 flex flex-wrap gap-3 items-center text-xs text-slate-500">
+          <span>利用：</span>
+          <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="rounded border border-slate-600 bg-slate-900/80 px-2 py-1 text-white w-48" />
+          <button type="button" id="exploit-sqlmap" class="rounded border border-red-500/50 bg-red-500/20 text-red-300 px-2 py-1">SQL 注入 (sqlmap)</button>
         </div>
       </footer>
     </div>
 
     <script>
-      const form = document.getElementById('command-form');
-      const input = document.getElementById('command-input');
-      const submitBtn = document.getElementById('command-submit');
-      const terminal = document.getElementById('terminal-output');
+      (function() {
+        var desktop = document.getElementById('desktop');
+        var zIndex = 10;
+
+        function bringFront(win) {
+          win.style.zIndex = ++zIndex;
+        }
+
+        function makeDraggable(win) {
+          var title = win.querySelector('.kali-window-title');
+          if (!title) return;
+          title.addEventListener('mousedown', function(e) {
+            if (e.target.classList.contains('btn')) return;
+            bringFront(win);
+            var dx = e.clientX - win.offsetLeft;
+            var dy = e.clientY - win.offsetTop;
+            function move(e2) {
+              var l = e2.clientX - dx;
+              var t = e2.clientY - dy;
+              var r = desktop.getBoundingClientRect();
+              win.style.left = Math.max(0, Math.min(l, r.width - 50)) + 'px';
+              win.style.top = Math.max(0, Math.min(t, r.height - 40)) + 'px';
+            }
+            function stop() {
+              document.removeEventListener('mousemove', move);
+              document.removeEventListener('mouseup', stop);
+            }
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stop);
+          });
+        }
+
+        function makeResizable(win) {
+          var resize = win.querySelector('.kali-window-resize');
+          if (!resize) return;
+          resize.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            bringFront(win);
+            var startW = win.offsetWidth;
+            var startH = win.offsetHeight;
+            var startX = e.clientX;
+            var startY = e.clientY;
+            function resizeMove(e2) {
+              var dw = e2.clientX - startX;
+              var dh = e2.clientY - startY;
+              win.style.width = Math.max(200, startW + dw) + 'px';
+              win.style.height = Math.max(100, startH + dh) + 'px';
+            }
+            function stop() {
+              document.removeEventListener('mousemove', resizeMove);
+              document.removeEventListener('mouseup', stop);
+            }
+            document.addEventListener('mousemove', resizeMove);
+            document.addEventListener('mouseup', stop);
+          });
+        }
+
+        desktop.querySelectorAll('.kali-window').forEach(function(win) {
+          makeDraggable(win);
+          makeResizable(win);
+        });
+      })();
+
+      var form = document.getElementById('command-form');
+      var input = document.getElementById('command-input');
+      var submitBtn = document.getElementById('command-submit');
+      var terminal = document.getElementById('terminal-output');
 
       function appendTerminal(lines) {
-        const frag = document.createDocumentFragment();
+        var frag = document.createDocumentFragment();
         lines.forEach(function(line) {
-          const span = document.createElement('span');
+          var span = document.createElement('span');
           span.className = 'term-' + (line.type || 'info');
           span.textContent = line.text + '\n';
           frag.appendChild(span);
@@ -168,15 +214,15 @@
       }
 
       function setPanel(id, text) {
-        const el = document.getElementById('panel-' + id + '-content');
+        var el = document.getElementById('panel-' + id + '-content');
         if (el) el.textContent = text || '—';
       }
 
       function setPanels(panels) {
         if (!panels) return;
-        const ls = panels.local_stats;
+        var ls = panels.local_stats;
         if (ls) setPanel('local', 'CPU: ' + (ls.cpu_percent ?? 0) + '%\n内存: ' + (ls.mem_percent ?? 0) + '% (' + (ls.mem_used_gb ?? 0) + '/' + (ls.mem_total_gb ?? 0) + ' GB)');
-        const ti = panels.target_info;
+        var ti = panels.target_info;
         if (ti) setPanel('target', 'Goal: ' + (ti.goal || '') + '\nTarget: ' + (ti.target || ''));
         setPanel('ports', panels.ports);
         setPanel('tracking', panels.tracking);
@@ -185,19 +231,14 @@
 
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
-        const msg = (input.value || '').trim();
+        var msg = (input.value || '').trim();
         if (!msg) return;
         submitBtn.disabled = true;
         terminal.innerHTML = '';
         appendTerminal([{ type: 'cmd', text: '[YOUKAI] ' + msg }]);
-
         try {
-          const res = await fetch('/api/command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg })
-          });
-          const data = await res.json();
+          var res = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+          var data = await res.json();
           if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
           if (data.panels) setPanels(data.panels);
           if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '请求失败' }]);
@@ -208,24 +249,63 @@
       });
 
       document.getElementById('exploit-sqlmap').addEventListener('click', async function() {
-        const url = (document.getElementById('exploit-url').value || '').trim();
+        var url = (document.getElementById('exploit-url').value || '').trim();
         if (!url) { appendTerminal([{ type: 'warn', text: '[EXPLOIT] 请先输入目标 URL' }]); return; }
         terminal.innerHTML = '';
         appendTerminal([{ type: 'cmd', text: '[EXPLOIT] sqlmap -u ' + url }]);
         submitBtn.disabled = true;
         try {
-          const res = await fetch('/api/execute_exploit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'sqlmap', payload: { url: url } })
-          });
-          const data = await res.json();
+          var res = await fetch('/api/execute_exploit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sqlmap', payload: { url: url } }) });
+          var data = await res.json();
           if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
           if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '执行失败' }]);
         } catch (err) {
           appendTerminal([{ type: 'error', text: err.message }]);
         }
         submitBtn.disabled = false;
+      });
+
+      // Kali 工具列表与运行
+      fetch('/api/tools').then(function(r) { return r.json(); }).then(function(data) {
+        var list = document.getElementById('tools-list');
+        if (!data.tools || !data.tools.length) { list.innerHTML = '<p class="text-slate-500 text-xs">无工具</p>'; return; }
+        list.innerHTML = '';
+        data.tools.forEach(function(t) {
+          var div = document.createElement('div');
+          div.className = 'border border-slate-600 rounded p-2 mb-2';
+          div.innerHTML = '<div class="text-fuchsia-400 font-medium text-xs">' + t.name + '</div><div class="text-slate-500 text-[10px] mb-1">' + (t.desc || '') + '</div>';
+          var params = (t.params || []);
+          var inputs = {};
+          params.forEach(function(p) {
+            var inp = document.createElement('input');
+            inp.placeholder = p.placeholder || p.key;
+            inp.className = 'w-full rounded border border-slate-600 bg-slate-800/80 px-1.5 py-0.5 text-xs text-white mb-1';
+            inp.dataset.key = p.key;
+            inputs[p.key] = inp;
+            div.appendChild(inp);
+          });
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'mt-1 rounded bg-slate-600 hover:bg-slate-500 text-xs px-2 py-0.5';
+          btn.textContent = '运行';
+          btn.addEventListener('click', function() {
+            var paramsObj = {};
+            params.forEach(function(p) { paramsObj[p.key] = (inputs[p.key] && inputs[p.key].value) || ''; });
+            terminal.innerHTML = '';
+            appendTerminal([{ type: 'cmd', text: '[Kali] ' + t.id + ' ' + JSON.stringify(paramsObj) }]);
+            fetch('/api/tool', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tool: t.id, params: paramsObj }) })
+              .then(function(r) { return r.json(); })
+              .then(function(d) {
+                if (d.terminal && d.terminal.length) appendTerminal(d.terminal);
+                if (!d.ok) appendTerminal([{ type: 'error', text: d.error || '执行失败' }]);
+              })
+              .catch(function(err) { appendTerminal([{ type: 'error', text: err.message }]); });
+          });
+          div.appendChild(btn);
+          list.appendChild(div);
+        });
+      }).catch(function() {
+        document.getElementById('tools-list').innerHTML = '<p class="text-slate-500 text-xs">加载工具列表失败</p>';
       });
     </script>
   </body>

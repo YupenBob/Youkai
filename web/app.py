@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from config.runtime import load_runtime_settings, save_runtime_settings
 from core.agent import create_kali_agent
 from tools.exploitation import run_dangerous_command
+from tools.kali_tools import run_tool
 from web.api_handlers import (
     build_panels,
     build_terminal_lines,
@@ -126,6 +127,50 @@ async def api_execute_exploit(request: Request) -> JSONResponse:
         {"type": "error" if code != 0 else "success", "text": err or out or f"退出码 {code}"},
     ]
     for line in (out or "").splitlines()[:50]:
+        if line.strip():
+            terminal.append({"type": "info", "text": line.strip()})
+    return JSONResponse(content={"ok": code == 0, "terminal": terminal, "exit_code": code})
+
+
+# Kali 工具列表（供前端展示与调用）
+KALI_TOOLS = [
+    {"id": "nmap", "name": "Nmap", "desc": "端口/服务扫描", "params": [{"key": "target", "label": "目标", "placeholder": "192.168.1.1"}, {"key": "args", "label": "参数", "placeholder": "-sV -Pn"}]},
+    {"id": "nikto", "name": "Nikto", "desc": "Web 服务器扫描", "params": [{"key": "url", "label": "URL", "placeholder": "http://target/"}]},
+    {"id": "dirb", "name": "Dirb", "desc": "目录枚举", "params": [{"key": "url", "label": "URL", "placeholder": "http://target/"}]},
+    {"id": "gobuster_dir", "name": "Gobuster Dir", "desc": "目录枚举", "params": [{"key": "url", "label": "URL", "placeholder": "http://target/"}]},
+    {"id": "gobuster_dns", "name": "Gobuster DNS", "desc": "子域名枚举", "params": [{"key": "domain", "label": "域名", "placeholder": "example.com"}]},
+    {"id": "whatweb", "name": "Whatweb", "desc": "Web 技术指纹", "params": [{"key": "url", "label": "URL", "placeholder": "http://target/"}]},
+    {"id": "whois", "name": "Whois", "desc": "域名信息", "params": [{"key": "domain", "label": "域名", "placeholder": "example.com"}]},
+    {"id": "ping", "name": "Ping", "desc": "连通性测试", "params": [{"key": "host", "label": "主机", "placeholder": "192.168.1.1"}]},
+    {"id": "curl", "name": "Curl", "desc": "HTTP 请求", "params": [{"key": "url", "label": "URL", "placeholder": "http://target/"}, {"key": "method", "label": "方法", "placeholder": "GET"}]},
+    {"id": "searchsploit", "name": "Searchsploit", "desc": "漏洞库搜索", "params": [{"key": "keyword", "label": "关键词", "placeholder": "apache 2.4"}]},
+    {"id": "hydra", "name": "Hydra", "desc": "暴力破解", "params": [{"key": "target", "label": "目标", "placeholder": "192.168.1.1"}, {"key": "service", "label": "服务", "placeholder": "ssh"}, {"key": "user", "label": "用户", "placeholder": "root"}, {"key": "passlist", "label": "密码字典", "placeholder": "/usr/share/wordlists/rockyou.txt"}]},
+]
+
+
+@app.get("/api/tools")
+def api_tools_list() -> JSONResponse:
+    """返回 Kali 工具列表（名称、描述、参数定义）。"""
+    return JSONResponse(content={"tools": KALI_TOOLS})
+
+
+@app.post("/api/tool")
+async def api_tool_run(request: Request) -> JSONResponse:
+    """执行指定 Kali 工具，返回终端风格输出。"""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "无效 JSON"})
+    tool_id = (body.get("tool") or body.get("id") or "").strip().lower()
+    params = body.get("params") or {}
+    if not tool_id:
+        return JSONResponse(status_code=400, content={"ok": False, "error": "缺少 tool"})
+    code, out, err = run_tool(tool_id, params)
+    terminal = [
+        {"type": "cmd", "text": f"[Kali] {tool_id} 执行"},
+        {"type": "error" if code != 0 else "success", "text": (err or out or f"退出码 {code}")[:500]},
+    ]
+    for line in (out or "").splitlines()[:80]:
         if line.strip():
             terminal.append({"type": "info", "text": line.strip()})
     return JSONResponse(content={"ok": code == 0, "terminal": terminal, "exit_code": code})
