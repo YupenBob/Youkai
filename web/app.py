@@ -12,15 +12,12 @@ from core.agent import create_kali_agent
 BASE_DIR = Path(__file__).resolve().parents[1]
 templates = Jinja2Templates(directory=str(BASE_DIR / "web" / "templates"))
 
-app = FastAPI(title="Kali Agent Web UI", version="0.1.0")
-
-# 在应用启动时创建一次 Agent，避免重复加载 LLM/Prompt
+app = FastAPI(title="YOUKAI / Kali Agent Web UI", version="0.1.0")
 agent = create_kali_agent()
 
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
-    """展示首页表单。"""
     return templates.TemplateResponse(
         "index.html",
         {
@@ -40,15 +37,11 @@ def run_scan(
     target: str = Form(..., description="扫描目标 IP/网段"),
     nmap_arguments: str = Form("-sV -Pn", description="Nmap 参数"),
 ) -> HTMLResponse:
-    """处理表单提交，调用 Kali Agent 并展示 HUMAN_CHECK 结果。"""
-
     goal = goal.strip()
     target = target.strip()
     nmap_arguments = (nmap_arguments or "-sV -Pn").strip() or "-sV -Pn"
-
     error: str | None = None
     final_state: dict | None = None
-
     if not goal:
         error = "Goal 不能为空，请描述你的渗透目标。"
     elif not target:
@@ -56,15 +49,10 @@ def run_scan(
     else:
         try:
             final_state = agent.invoke(
-                {
-                    "goal": goal,
-                    "target": target,
-                    "nmap_arguments": nmap_arguments,
-                }
+                {"goal": goal, "target": target, "nmap_arguments": nmap_arguments}
             )
         except Exception as exc:  # noqa: BLE001
             error = f"执行 Agent 时发生错误：{exc}"
-
     return templates.TemplateResponse(
         "index.html",
         {
@@ -79,4 +67,3 @@ def run_scan(
 
 
 __all__ = ["app"]
-

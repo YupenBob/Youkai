@@ -6,11 +6,13 @@ from pydantic import BaseSettings, Field
 
 
 class Settings(BaseSettings):
-    """全局配置：API Key 与 Docker/Kali 设置。
+    """全局配置：API Key 与沙箱/Docker 设置。
 
-    通过环境变量进行覆盖，前缀为 `KALI_AGENT_`，例如：
+    通过环境变量覆盖，前缀为 `KALI_AGENT_`，例如：
     - KALI_AGENT_OPENAI_API_KEY
-    - KALI_AGENT_KALI_IMAGE
+    - KALI_AGENT_GOOGLE_GEMINI_API_KEY
+    - KALI_AGENT_DEEPSEEK_API_KEY
+    - KALI_AGENT_SANDBOX_MODE（默认 local）
     """
 
     openai_api_key: Optional[str] = Field(
@@ -18,6 +20,12 @@ class Settings(BaseSettings):
     )
     anthropic_api_key: Optional[str] = Field(
         default=None, description="Anthropic API Key（可选）"
+    )
+    google_gemini_api_key: Optional[str] = Field(
+        default=None, description="Google Gemini API Key（可选）"
+    )
+    deepseek_api_key: Optional[str] = Field(
+        default=None, description="DeepSeek API Key（可选，OpenAI 兼容接口）"
     )
 
     kali_image: str = Field(
@@ -34,11 +42,11 @@ class Settings(BaseSettings):
     )
     sandbox_default_timeout: int = Field(
         default=120,
-        description="KaliSandbox 中命令默认超时时间（秒）",
+        description="沙箱中命令默认超时时间（秒）",
     )
     sandbox_mode: str = Field(
-        default="docker",
-        description="沙箱模式：'docker' 在容器中执行，'local' 在本机（如 Kali 虚拟机）直接执行",
+        default="local",
+        description="沙箱模式：'local' 在本机执行（默认），'docker' 在容器中执行",
     )
 
     class Config:
@@ -48,4 +56,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

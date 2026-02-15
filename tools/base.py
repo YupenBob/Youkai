@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-"""工具基类与公共工具帮助函数。
-
-目前项目中主要依赖 LangChain 的 @tool 装饰器直接定义函数式工具，
-后续如果需要更复杂的工具管理（如权限分级、审计日志），可以在这里扩展。
-"""
+"""工具基类与公共工具帮助函数。"""
 
 from dataclasses import dataclass
 from typing import Optional
@@ -22,4 +18,3 @@ class ToolMetadata:
 
 
 __all__ = ["ToolMetadata"]
-

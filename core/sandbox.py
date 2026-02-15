@@ -18,8 +18,6 @@ class CommandTimeoutError(TimeoutError):
 
 @dataclass
 class CommandResult:
-    """封装一次命令执行结果。"""
-
     command: str
     exit_code: int
     stdout: str
@@ -27,10 +25,7 @@ class CommandResult:
     timed_out: bool = False
 
 
-def _validate_command_static(
-    args: List[str],
-    allowed_binaries: List[str],
-) -> None:
+def _validate_command_static(args: List[str], allowed_binaries: List[str]) -> None:
     if not args:
         raise ValueError("命令参数不能为空")
     binary = args[0]
@@ -41,12 +36,7 @@ def _validate_command_static(
 
 
 class LocalSandbox:
-    """在本机（如 Kali 虚拟机）直接执行命令的沙箱。
-
-    - 仅允许预设白名单内的可执行程序（如 ls, whoami, nmap）
-    - 通过 subprocess 在本机执行，适合在 Kali VM 上运行、无需 Docker
-    - 通过线程 + join 实现超时，超时后会 kill 子进程
-    """
+    """在本机（如 Kali 虚拟机）直接执行命令的沙箱。"""
 
     def __init__(
         self,
@@ -64,11 +54,9 @@ class LocalSandbox:
         args: List[str],
         timeout: Optional[int] = None,
     ) -> CommandResult:
-        """在本机执行命令。"""
         self._validate_command(args)
         cmd_str = " ".join(shlex.quote(a) for a in args)
         logger.info("Executing in local sandbox: %s", cmd_str)
-
         result: dict = {}
         error: dict = {}
 
@@ -111,20 +99,13 @@ class LocalSandbox:
             raise CommandTimeoutError(
                 f"命令在本机执行超时（>{effective_timeout}s）: {cmd_str}"
             )
-
         if "exception" in error:
             raise error["exception"]  # type: ignore[misc]
-
         return result["value"]  # type: ignore[return-value]
 
 
 class KaliSandbox:
-    """在 Kali Linux Docker 容器中安全执行命令的沙箱。
-
-    - 仅允许预设白名单内的可执行程序（如 ls, whoami, nmap）
-    - 所有命令在 Docker 容器内执行（需安装并运行 Docker）
-    - 通过线程 join 实现超时控制
-    """
+    """在 Kali Linux Docker 容器中执行命令的沙箱（需 Docker）。"""
 
     def __init__(
         self,
@@ -134,7 +115,6 @@ class KaliSandbox:
     ) -> None:
         import docker
         from docker.models.containers import Container
-
         self._docker = docker
         self._Container = Container
         self._client = docker.from_env()
@@ -148,12 +128,9 @@ class KaliSandbox:
             self.start()
 
     def start(self) -> None:
-        """启动一个 Kali 容器（如已存在则复用）。"""
-        if self._container is not None:
-            if self._container.status not in ("exited", "dead"):
-                return
+        if self._container is not None and self._container.status not in ("exited", "dead"):
+            return
         from docker.errors import DockerException
-
         try:
             logger.info("Starting Kali sandbox container from image %s", self.image)
             self._container = self._client.containers.run(
@@ -170,7 +147,6 @@ class KaliSandbox:
             raise
 
     def stop(self) -> None:
-        """停止当前容器（如果存在）。"""
         if self._container is None:
             return
         try:
@@ -189,16 +165,12 @@ class KaliSandbox:
         args: List[str],
         timeout: Optional[int] = None,
     ) -> CommandResult:
-        """在 Kali 容器内执行命令。"""
         self._ensure_started()
         self._validate_command(args)
-
         if self._container is None:
             raise RuntimeError("Kali 容器尚未启动")
-
         cmd_str = " ".join(shlex.quote(a) for a in args)
         logger.info("Executing in Kali sandbox: %s", cmd_str)
-
         result: dict = {}
         error: dict = {}
 
@@ -220,7 +192,6 @@ class KaliSandbox:
         thread.start()
         effective_timeout = timeout or self.default_timeout
         thread.join(effective_timeout)
-
         if thread.is_alive():
             logger.warning(
                 "Command timed out in Kali sandbox after %s seconds: %s",
@@ -231,19 +202,17 @@ class KaliSandbox:
             raise CommandTimeoutError(
                 f"命令在沙箱中执行超时（>{effective_timeout}s）: {cmd_str}"
             )
-
         if "exception" in error:
             raise error["exception"]  # type: ignore[misc]
-
         return result["value"]  # type: ignore[return-value]
 
 
 def get_sandbox() -> Union[KaliSandbox, LocalSandbox]:
-    """根据配置返回沙箱实例。sandbox_mode='local' 时在本机执行，否则使用 Docker。"""
-    mode = (settings.sandbox_mode or "docker").strip().lower()
-    if mode == "local":
-        return LocalSandbox()
-    return KaliSandbox()
+    """根据配置返回沙箱。默认 local（本机），可选 docker。"""
+    mode = (settings.sandbox_mode or "local").strip().lower()
+    if mode == "docker":
+        return KaliSandbox()
+    return LocalSandbox()
 
 
 __all__ = [
@@ -253,4 +222,3 @@ __all__ = [
     "LocalSandbox",
     "get_sandbox",
 ]
-

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <title>Kali Agent Web UI</title>
+    <title>YOUKAI / Kali Agent Web UI</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
@@ -14,14 +14,12 @@
             <span
               class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/40"
             >
-              KA
+              YK
             </span>
             <div>
-              <h1 class="text-lg font-semibold leading-tight">
-                Kali Agent 控制台
-              </h1>
+              <h1 class="text-lg font-semibold leading-tight">YOUKAI 控制台</h1>
               <p class="text-xs text-slate-400">
-                基于 LLM 的红队辅助 · 运行在 Kali Docker 沙箱中
+                基于 LLM 的红队辅助 · 默认本机 Kali 执行
               </p>
             </div>
           </div>
@@ -30,7 +28,6 @@
 
       <main class="flex-1">
         <div class="max-w-5xl mx-auto px-4 py-6 grid gap-6 lg:grid-cols-2">
-          <!-- 左侧：表单 -->
           <section
             class="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-emerald-500/5 p-5"
           >
@@ -41,7 +38,6 @@
               >
               配置扫描任务
             </h2>
-
             {% if error %}
             <div
               class="mb-4 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-2 text-xs text-red-200"
@@ -49,14 +45,9 @@
               {{ error }}
             </div>
             {% endif %}
-
             <form method="post" class="space-y-4">
               <div class="space-y-1.5">
-                <label
-                  for="goal"
-                  class="block text-xs font-medium text-slate-200"
-                  >渗透目标 (Goal)</label
-                >
+                <label for="goal" class="block text-xs font-medium text-slate-200">渗透目标 (Goal)</label>
                 <textarea
                   id="goal"
                   name="goal"
@@ -65,17 +56,10 @@
                   placeholder="例如：扫描 192.168.1.1 的常见服务，并给出下一步红队行动建议。"
                   required
                 >{{ goal }}</textarea>
-                <p class="text-[11px] text-slate-400">
-                  用自然语言描述你想要完成的渗透测试目标。
-                </p>
+                <p class="text-[11px] text-slate-400">用自然语言描述你想要完成的渗透测试目标。</p>
               </div>
-
               <div class="space-y-1.5">
-                <label
-                  for="target"
-                  class="block text-xs font-medium text-slate-200"
-                  >扫描目标 (Target)</label
-                >
+                <label for="target" class="block text-xs font-medium text-slate-200">扫描目标 (Target)</label>
                 <input
                   id="target"
                   name="target"
@@ -85,17 +69,10 @@
                   placeholder="例如：192.168.1.1 或 10.0.0.0/24"
                   required
                 />
-                <p class="text-[11px] text-slate-400">
-                  实际要扫描的 IP 地址或网段。
-                </p>
+                <p class="text-[11px] text-slate-400">实际要扫描的 IP 地址或网段。</p>
               </div>
-
               <div class="space-y-1.5">
-                <label
-                  for="nmap_arguments"
-                  class="block text-xs font-medium text-slate-200"
-                  >Nmap 参数</label
-                >
+                <label for="nmap_arguments" class="block text-xs font-medium text-slate-200">Nmap 参数</label>
                 <input
                   id="nmap_arguments"
                   name="nmap_arguments"
@@ -104,17 +81,11 @@
                   class="w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-slate-100 shadow-inner shadow-black/40 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/60"
                   placeholder="-sV -Pn -p 1-1000"
                 />
-                <p class="text-[11px] text-slate-400">
-                  默认使用 <code class="font-mono text-emerald-300">-sV -Pn</code>
-                  ，可以按需调整端口范围等参数。
-                </p>
+                <p class="text-[11px] text-slate-400">默认 <code class="font-mono text-emerald-300">-sV -Pn</code>，可调整端口范围等。</p>
               </div>
-
               <div class="pt-2 flex items-center justify-between">
                 <p class="text-[11px] text-slate-500 max-w-[70%]">
-                  当前版本<span class="font-semibold text-emerald-300">
-                    仅执行信息收集与分析</span
-                  >，不会自动运行 Exploit 等高危操作。
+                  当前版本<span class="font-semibold text-emerald-300">仅执行信息收集与分析</span>，不会自动运行 Exploit。
                 </p>
                 <button
                   type="submit"
@@ -126,71 +97,41 @@
             </form>
           </section>
 
-          <!-- 右侧：结果展示 -->
           <section
             class="rounded-2xl border border-slate-800 bg-slate-900/60 shadow-xl shadow-emerald-500/5 p-5 flex flex-col"
           >
             <h2 class="text-base font-semibold mb-3 flex items-center gap-2">
-              <span
-                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/15 text-sky-300 text-xs"
-                >2</span
-              >
+              <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/15 text-sky-300 text-xs">2</span>
               结果与 HUMAN_CHECK
             </h2>
-
             {% if not result %}
-            <div
-              class="flex-1 flex items-center justify-center text-xs text-slate-500 text-center border border-dashed border-slate-700 rounded-xl px-4"
-            >
-              <p>
-                填写左侧任务信息并点击<span class="font-semibold text-emerald-300">
-                  开始扫描与分析</span
-                >，这里将展示侦察结果、分析结论与 HUMAN_CHECK 说明。
-              </p>
+            <div class="flex-1 flex items-center justify-center text-xs text-slate-500 text-center border border-dashed border-slate-700 rounded-xl px-4">
+              <p>填写左侧任务信息并点击<span class="font-semibold text-emerald-300">开始扫描与分析</span>，这里将展示侦察结果、分析结论与 HUMAN_CHECK 说明。</p>
             </div>
             {% else %}
             <div class="space-y-4 text-xs overflow-y-auto max-h-[70vh] pr-1">
               {% if result.recon_result %}
               <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">
-                  侦察结果 (Nmap 摘要)
-                </h3>
-                <pre
-                  class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto"
-                >{{ result.recon_result }}</pre>
+                <h3 class="font-semibold text-slate-100">侦察结果 (Nmap 摘要)</h3>
+                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto">{{ result.recon_result }}</pre>
               </div>
               {% endif %}
-
               {% if result.analysis %}
               <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">
-                  LLM 分析 (红队视角)
-                </h3>
-                <pre
-                  class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto"
-                >{{ result.analysis }}</pre>
+                <h3 class="font-semibold text-slate-100">LLM 分析 (红队视角)</h3>
+                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-slate-200 overflow-auto">{{ result.analysis }}</pre>
               </div>
               {% endif %}
-
               {% if result.decision %}
               <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">
-                  决策 (JSON)
-                </h3>
-                <pre
-                  class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-emerald-200 overflow-auto"
-                >{{ result.decision }}</pre>
+                <h3 class="font-semibold text-slate-100">决策 (JSON)</h3>
+                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-slate-800 px-3 py-2 font-mono text-[11px] text-emerald-200 overflow-auto">{{ result.decision }}</pre>
               </div>
               {% endif %}
-
               {% if result.human_check_message %}
               <div class="space-y-1.5">
-                <h3 class="font-semibold text-slate-100">
-                  HUMAN_CHECK 说明
-                </h3>
-                <pre
-                  class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-emerald-600/70 px-3 py-2 font-mono text-[11px] text-emerald-100 overflow-auto"
-                >{{ result.human_check_message }}</pre>
+                <h3 class="font-semibold text-slate-100">HUMAN_CHECK 说明</h3>
+                <pre class="whitespace-pre-wrap rounded-lg bg-slate-950/70 border border-emerald-600/70 px-3 py-2 font-mono text-[11px] text-emerald-100 overflow-auto">{{ result.human_check_message }}</pre>
               </div>
               {% endif %}
             </div>
@@ -200,16 +141,11 @@
       </main>
 
       <footer class="border-t border-slate-800 bg-slate-950/90">
-        <div
-          class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between text-[11px] text-slate-500"
-        >
-          <p>
-            Kali Agent · 仅用于授权环境内的安全测试与攻防演练，请遵守相关法律与合规要求。
-          </p>
-          <p>LLM 驱动 · Kali Docker 沙箱 · LangGraph 状态机</p>
+        <div class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between text-[11px] text-slate-500">
+          <p>YOUKAI · 仅用于授权环境内的安全测试与攻防演练，请遵守相关法律与合规要求。</p>
+          <p>多 LLM 支持 (OpenAI / Anthropic / Gemini / DeepSeek) · 默认本机执行 · LangGraph</p>
         </div>
       </footer>
     </div>
   </body>
 </html>
-
