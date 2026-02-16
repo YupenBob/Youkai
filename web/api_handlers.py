@@ -49,12 +49,12 @@ def parse_goal_target_from_message(message: str) -> tuple[str, str, str]:
     return goal, target or "127.0.0.1", nmap_args
 
 
-def build_terminal_lines(state: dict[str, Any]) -> list[dict[str, str]]:
-    """把 Agent 状态转成 Kali 风格多色终端行。type: cmd|info|success|warn|error。"""
-    lines: list[dict[str, str]] = []
-    lines.append({"type": "cmd", "text": "[YOUKAI] START → RECON → ANALYSIS → DECISION → HUMAN_CHECK"})
-    lines.append({"type": "info", "text": f"Goal: {state.get('goal', '')}"})
-    lines.append({"type": "info", "text": f"Target: {state.get('target', '')}"})
+def build_terminal_lines(state: dict[str, Any]) -> list[dict[str, Any]]:
+    """把 Agent 状态转成 Kali 风格多色终端行。type: cmd|info|success|warn|error；channel: recon|analysis|exec|general。"""
+    lines: list[dict[str, Any]] = []
+    lines.append({"type": "cmd", "text": "[YOUKAI] START → RECON → ANALYSIS → DECISION → HUMAN_CHECK", "channel": "general"})
+    lines.append({"type": "info", "text": f"Goal: {state.get('goal', '')}", "channel": "general"})
+    lines.append({"type": "info", "text": f"Target: {state.get('target', '')}", "channel": "general"})
 
     recon = state.get("recon_result") or ""
     if recon:
@@ -63,38 +63,64 @@ def build_terminal_lines(state: dict[str, Any]) -> list[dict[str, str]]:
             if not line:
                 continue
             if "open" in line.lower() and ("tcp" in line or "udp" in line):
-                lines.append({"type": "success", "text": line})
+                lines.append({"type": "success", "text": line, "channel": "recon"})
             else:
-                lines.append({"type": "info", "text": line})
+                lines.append({"type": "info", "text": line, "channel": "recon"})
 
     analysis = state.get("analysis") or ""
     if analysis:
-        lines.append({"type": "warn", "text": "--- LLM 分析 ---"})
+        lines.append({"type": "warn", "text": "--- LLM 分析 ---", "channel": "analysis"})
         for line in analysis.splitlines()[:15]:
             if line.strip():
-                lines.append({"type": "info", "text": line.strip()})
+                lines.append({"type": "info", "text": line.strip(), "channel": "analysis"})
 
     decision = state.get("decision") or ""
     if decision:
-        lines.append({"type": "warn", "text": "--- 决策 ---"})
-        lines.append({"type": "info", "text": decision.strip()[:500]})
+        lines.append({"type": "warn", "text": "--- 决策 ---", "channel": "exec"})
+        lines.append({"type": "info", "text": decision.strip()[:500], "channel": "exec"})
 
     report = state.get("human_check_message") or ""
     if report:
-        lines.append({"type": "success", "text": "[HUMAN_CHECK] 报告已生成，请审阅后决定是否执行利用。"})
+        lines.append({"type": "success", "text": "[HUMAN_CHECK] 报告已生成，请审阅后点击「确认执行」。", "channel": "exec"})
 
     return lines
 
 
+def _parse_port_counts(recon: str) -> dict[str, int]:
+    """从 recon 文本中解析 open/filtered/closed 数量，供前端饼图使用。"""
+    open_count = filtered_count = closed_count = 0
+    for line in recon.splitlines():
+        line_lower = line.lower()
+        if "open" in line_lower and ("tcp" in line_lower or "udp" in line_lower):
+            open_count += 1
+        if "filtered" in line_lower:
+            filtered_count += 1
+        if "closed" in line_lower and ("tcp" in line_lower or "udp" in line_lower):
+            closed_count += 1
+    return {"open": open_count, "filtered": filtered_count, "closed": closed_count}
+
+
+def _report_summary(report: str, max_lines: int = 5, max_chars: int = 400) -> str:
+    """截取报告摘要，用于简洁展示。"""
+    if not report:
+        return ""
+    lines = [ln.strip() for ln in report.splitlines() if ln.strip()][:max_lines]
+    text = "\n".join(lines)
+    return text[:max_chars] + ("…" if len(text) > max_chars else "")
+
+
 def build_panels(state: dict[str, Any], local_stats: dict[str, Any]) -> dict[str, Any]:
-    """组装数据窗口内容。"""
+    """组装数据窗口内容。含 port_counts（饼图）、report_summary（简洁展示）。"""
     recon = (state.get("recon_result") or "").strip()
     analysis = (state.get("analysis") or "").strip()
     decision = (state.get("decision") or "").strip()
     report = (state.get("human_check_message") or "").strip()
+    full_report = report or analysis or "暂无报告"
 
     # 从 recon 里简单提取端口行
     port_lines = [l.strip() for l in recon.splitlines() if "open" in l.lower() and ("tcp" in l or "udp" in l)]
+    port_counts = _parse_port_counts(recon)
+    report_summary = _report_summary(full_report)
 
     return {
         "local_stats": local_stats,
@@ -103,6 +129,8 @@ def build_panels(state: dict[str, Any], local_stats: dict[str, Any]) -> dict[str
             "target": state.get("target", ""),
         },
         "ports": "\n".join(port_lines) if port_lines else (recon[:800] if recon else "暂无"),
+        "port_counts": port_counts,
         "tracking": f"目标: {state.get('target', '')}\n分析完成 → 决策已生成",
-        "report": report or analysis or "暂无报告",
+        "report": full_report,
+        "report_summary": report_summary,
     }

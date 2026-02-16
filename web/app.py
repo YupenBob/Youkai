@@ -153,6 +153,12 @@ async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
     thread = threading.Thread(target=run_stream, daemon=True)
     thread.start()
 
+    # 先给对话窗口一条简短回复，再推送各步骤
+    yield json.dumps(
+        {"type": "reply", "message": "收到，开始侦察目标…"},
+        ensure_ascii=False,
+    ) + "\n"
+
     while True:
         try:
             msg = await asyncio.wait_for(queue.get(), timeout=120.0)
