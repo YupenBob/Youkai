@@ -5,7 +5,7 @@ import shlex
 import subprocess
 import threading
 from dataclasses import dataclass
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 from config.runtime import get_effective_sandbox_mode
 from config.settings import settings
@@ -54,6 +54,7 @@ class LocalSandbox:
         self,
         args: List[str],
         timeout: Optional[int] = None,
+        on_stdout_line: Optional[Callable[[str], None]] = None,
     ) -> CommandResult:
         self._validate_command(args)
         cmd_str = " ".join(shlex.quote(a) for a in args)
@@ -70,14 +71,32 @@ class LocalSandbox:
                     text=True,
                 )
                 result["proc"] = proc
-                out, err = proc.communicate()
-                result["value"] = CommandResult(
-                    command=cmd_str,
-                    exit_code=proc.returncode or 0,
-                    stdout=out or "",
-                    stderr=err or "",
-                    timed_out=False,
-                )
+                if on_stdout_line and proc.stdout:
+                    lines: list[str] = []
+                    for line in iter(proc.stdout.readline, ""):
+                        lines.append(line)
+                        try:
+                            on_stdout_line(line.rstrip("\n"))
+                        except Exception:  # noqa: BLE001
+                            pass
+                    proc.wait()
+                    err = (proc.stderr.read() or "") if proc.stderr else ""
+                    result["value"] = CommandResult(
+                        command=cmd_str,
+                        exit_code=proc.returncode or 0,
+                        stdout="".join(lines) or "",
+                        stderr=err or "",
+                        timed_out=False,
+                    )
+                else:
+                    out, err = proc.communicate()
+                    result["value"] = CommandResult(
+                        command=cmd_str,
+                        exit_code=proc.returncode or 0,
+                        stdout=out or "",
+                        stderr=err or "",
+                        timed_out=False,
+                    )
             except Exception as exc:  # noqa: BLE001
                 error["exception"] = exc
 
@@ -165,6 +184,7 @@ class KaliSandbox:
         self,
         args: List[str],
         timeout: Optional[int] = None,
+        on_stdout_line: Optional[Callable[[str], None]] = None,
     ) -> CommandResult:
         self._ensure_started()
         self._validate_command(args)

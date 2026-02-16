@@ -123,13 +123,15 @@ STEP_MESSAGES = {
 
 
 async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
-    """异步生成器：逐步推送 Thinking 与最终结果（NDJSON 每行一个 JSON）。"""
+    """异步生成器：逐步推送 Thinking 与最终结果（NDJSON）。等待期间每 12 秒推送「进行中」避免长时间无反馈。"""
+    import time
     queue: asyncio.Queue = asyncio.Queue()
     final_state: dict | None = None
     error: str | None = None
 
     def run_stream():
         nonlocal final_state, error
+        setattr(threading.current_thread(), "progress_queue", queue)
         try:
             agent = get_agent()
             initial = {"goal": goal, "target": target, "nmap_arguments": nmap_arguments}
@@ -153,35 +155,72 @@ async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
     thread = threading.Thread(target=run_stream, daemon=True)
     thread.start()
 
-    # 先给对话窗口一条简短回复，再推送各步骤
+    # 1. 对话窗口简短回复
     yield json.dumps(
         {"type": "reply", "message": "收到，开始侦察目标…"},
         ensure_ascii=False,
     ) + "\n"
+    # 2. 立即显示「正在做什么」，避免长时间空白
+    yield json.dumps(
+        {"type": "thinking", "step": "START", "message": "正在启动侦察（即将执行 Nmap）…"},
+        ensure_ascii=False,
+    ) + "\n"
+
+    last_step, last_message = "RECON", "执行 Nmap 扫描中…"
+    idle_since = time.monotonic()
+    wait_interval = 12.0
+    total_timeout = 300.0
 
     while True:
         try:
-            msg = await asyncio.wait_for(queue.get(), timeout=120.0)
+            msg = await asyncio.wait_for(queue.get(), timeout=wait_interval)
         except asyncio.TimeoutError:
-            yield json.dumps({"type": "error", "message": "执行超时"}, ensure_ascii=False) + "\n"
-            break
-        if msg[0] == "step":
-            _, node_name, message = msg
-            yield json.dumps(
-                {"type": "thinking", "step": node_name, "message": message},
-                ensure_ascii=False,
-            ) + "\n"
-        elif msg[0] == "done":
-            if error:
-                yield json.dumps({"type": "error", "message": error}, ensure_ascii=False) + "\n"
+            # 等待期间定期推送「进行中」，让用户看到 Youkai 在这段时间在干什么
+            elapsed = time.monotonic() - idle_since
+            if elapsed >= total_timeout:
+                yield json.dumps(
+                    {"type": "error", "message": "执行超时（侦察/扫描耗时较长可稍候重试）"},
+                    ensure_ascii=False,
+                ) + "\n"
                 break
-            local_stats = get_local_stats()
-            panels = build_panels(final_state or {}, local_stats)
-            terminal = build_terminal_lines(final_state or {})
             yield json.dumps(
-                {"type": "done", "ok": True, "panels": panels, "terminal": terminal},
+                {
+                    "type": "thinking",
+                    "step": last_step,
+                    "message": last_message + "（进行中，请稍候…）",
+                },
                 ensure_ascii=False,
             ) + "\n"
+            continue
+        idle_since = time.monotonic()
+        try:
+            if msg[0] == "progress_line":
+                _, channel, line = msg
+                yield json.dumps(
+                    {"type": "progress", "channel": channel, "line": line},
+                    ensure_ascii=False,
+                ) + "\n"
+            elif msg[0] == "step":
+                _, node_name, message = msg
+                last_step, last_message = node_name, message
+                yield json.dumps(
+                    {"type": "thinking", "step": node_name, "message": message},
+                    ensure_ascii=False,
+                ) + "\n"
+            elif msg[0] == "done":
+                if error:
+                    yield json.dumps({"type": "error", "message": error}, ensure_ascii=False) + "\n"
+                    break
+                local_stats = get_local_stats()
+                panels = build_panels(final_state or {}, local_stats)
+                terminal = build_terminal_lines(final_state or {})
+                yield json.dumps(
+                    {"type": "done", "ok": True, "panels": panels, "terminal": terminal},
+                    ensure_ascii=False,
+                ) + "\n"
+                break
+        except Exception as e:  # noqa: BLE001
+            yield json.dumps({"type": "error", "message": f"流式输出异常: {e!s}"}, ensure_ascii=False) + "\n"
             break
 
 

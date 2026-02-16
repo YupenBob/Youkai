@@ -85,9 +85,15 @@
       .kali-window-body .btn-exec:hover { background: rgba(34,197,94,0.4); }
       .kali-window.kali-window--minimized .kali-window-body { display: none; }
       .kali-window.kali-window--minimized .kali-window-resize { display: none; }
-      .chat-msg { font-size: 11px; margin-bottom: 4px; }
-      .chat-msg.user { color: #e879f9; }
-      .chat-msg.youkai { color: #a78bfa; }
+      /* 类聊天软件气泡样式 */
+      .chat-row { display: flex; margin-bottom: 10px; }
+      .chat-row.user { justify-content: flex-end; }
+      .chat-row.youkai { justify-content: flex-start; }
+      .chat-bubble { max-width: 85%; padding: 8px 12px; border-radius: 12px; font-size: 12px; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
+      .chat-row.user .chat-bubble { background: rgba(232,121,249,0.25); border: 1px solid rgba(232,121,249,0.4); color: #e879f9; border-bottom-right-radius: 4px; }
+      .chat-row.youkai .chat-bubble { background: rgba(167,139,250,0.2); border: 1px solid rgba(167,139,250,0.35); color: #a78bfa; border-bottom-left-radius: 4px; }
+      .chat-bubble .chat-label { font-size: 10px; opacity: 0.8; margin-bottom: 4px; }
+      #chat-messages { font-family: system-ui, -apple-system, sans-serif; }
       .kali-window-body { flex: 1; overflow: auto; padding: 8px; font-size: 11px; font-family: monospace; color: #a6adc8; }
       .kali-window-body pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
       .kali-window-resize {
@@ -200,12 +206,13 @@
           <div class="kali-window-body"><div id="panel-report-content">—</div></div>
           <div class="kali-window-resize"></div>
         </div>
-        <!-- 确认执行：单窗口，仅含确认按钮 -->
-        <div class="kali-window kali-window--hidden" id="win-confirm" style="left: 828px; top: 184px; width: 160px; height: 120px;" data-window="confirm">
+        <!-- 确认执行：单窗口，含利用 URL 与确认按钮 -->
+        <div class="kali-window kali-window--hidden" id="win-confirm" style="left: 828px; top: 184px; width: 260px; height: 160px;" data-window="confirm">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">确认执行</span></div>
-          <div class="kali-window-body flex flex-col items-center justify-center p-3">
-            <p class="text-slate-400 text-xs mb-3 text-center">审阅报告后点击下方按钮确认执行渗透</p>
-            <button type="button" class="btn-exec w-full py-2 rounded font-medium" id="report-confirm-exec">确认执行</button>
+          <div class="kali-window-body flex flex-col p-3">
+            <p class="text-slate-400 text-xs mb-2">审阅报告后填写目标 URL，点击确认执行渗透。</p>
+            <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="w-full rounded border border-slate-600 bg-slate-900/80 px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none mb-3" />
+            <button type="button" class="btn-exec w-full py-2 rounded font-medium" id="report-confirm-exec">确认执行 (sqlmap)</button>
           </div>
           <div class="kali-window-resize"></div>
         </div>
@@ -239,10 +246,8 @@
         </div>
       </div>
 
-      <footer class="flex-shrink-0 border-t border-slate-800 px-4 py-2 flex flex-wrap gap-3 items-center text-xs" style="background: rgba(10,10,15,0.95);">
-        <span class="text-slate-500">利用（确认执行前请填写 URL）：</span>
-        <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="rounded border border-slate-600 bg-slate-900/80 px-2 py-1 text-white w-56" />
-        <button type="button" id="exploit-sqlmap" class="rounded border border-red-500/50 bg-red-500/20 text-red-300 px-2 py-1">SQL 注入 (sqlmap)</button>
+      <footer class="flex-shrink-0 border-t border-slate-800 px-4 py-2 text-xs text-slate-500" style="background: rgba(10,10,15,0.95);">
+        YOUKAI — 在「与 Youkai 对话」下发指令，在「确认执行」窗口填写 URL 并执行利用。
       </footer>
     </div>
 
@@ -385,6 +390,32 @@
             var id = btn.dataset.show;
             btn.classList.toggle('has-content', ids && ids.indexOf(id) !== -1);
           });
+        },
+        WINDOW_ORDER: ['chat','local','target','ports','tracking','report','confirm','terminal-recon','terminal-analysis','terminal-exec','terminal','tools'],
+        layoutWindowsUniform: function() {
+          var desktop = document.getElementById('desktop');
+          if (!desktop) return;
+          var rect = desktop.getBoundingClientRect();
+          var w = rect.width || 1200;
+          var h = rect.height || 600;
+          var cols = 4;
+          var gap = 10;
+          var cellW = Math.max(220, Math.floor((w - gap * (cols + 1)) / cols));
+          var rows = Math.ceil(12 / cols);
+          var cellH = Math.max(140, Math.floor((h - gap * (rows + 1)) / rows));
+          var visible = [];
+          this.WINDOW_ORDER.forEach(function(id) {
+            var win = document.getElementById('win-' + id);
+            if (win && !win.classList.contains('kali-window--hidden')) visible.push(win);
+          });
+          visible.forEach(function(win, i) {
+            var c = i % cols;
+            var r = Math.floor(i / cols);
+            win.style.left = (gap + c * (cellW + gap)) + 'px';
+            win.style.top = (gap + r * (cellH + gap)) + 'px';
+            win.style.width = cellW + 'px';
+            win.style.height = cellH + 'px';
+          });
         }
       };
 
@@ -436,14 +467,36 @@
 
       function appendChatMessage(who, text) {
         if (!chatMessages) return;
-        var div = document.createElement('div');
-        div.className = 'chat-msg ' + (who === 'user' ? 'user' : 'youkai');
-        div.textContent = (who === 'user' ? '我：' : 'Youkai：') + text;
-        chatMessages.appendChild(div);
+        var row = document.createElement('div');
+        row.className = 'chat-row ' + (who === 'user' ? 'user' : 'youkai');
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        var label = document.createElement('div');
+        label.className = 'chat-label';
+        label.textContent = who === 'user' ? '我' : 'Youkai';
+        bubble.appendChild(label);
+        var content = document.createElement('div');
+        content.textContent = text;
+        bubble.appendChild(content);
+        row.appendChild(bubble);
+        chatMessages.appendChild(row);
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }
 
       var channelToId = { recon: 'terminal-recon-output', analysis: 'terminal-analysis-output', exec: 'terminal-exec-output', general: 'terminal-output' };
+      function stepToChannel(step) {
+        if (!step) return 'general';
+        if (step === 'RECON') return 'recon';
+        if (step === 'ANALYSIS') return 'analysis';
+        if (step === 'DECISION' || step === 'HUMAN_CHECK') return 'exec';
+        return 'general';
+      }
+      function appendDebug(step, message) {
+        var ch = stepToChannel(step);
+        var text = '[DEBUG] ' + (step || '') + ' — ' + (message || '');
+        appendTerminalSingle({ type: 'info', text: text, channel: ch });
+        if (ch !== 'general') appendTerminalSingle({ type: 'info', text: text, channel: 'general' });
+      }
       function appendTerminal(lines) {
         if (!lines || !lines.length) return;
         lines.forEach(function(line) {
@@ -499,12 +552,30 @@
         withContent.push('terminal', 'terminal-recon', 'terminal-analysis', 'terminal-exec');
         window.YoukaiUI.markLauncherHasContent(withContent);
         withContent.forEach(function(id) { window.YoukaiUI.showWindow(id); });
+        window.YoukaiUI.layoutWindowsUniform();
       }
 
-      document.getElementById('report-confirm-exec').addEventListener('click', function() {
+      document.getElementById('report-confirm-exec').addEventListener('click', async function() {
         var url = (document.getElementById('exploit-url').value || '').trim();
-        if (!url) { appendChatMessage('youkai', '请先在底部填写利用 URL 后再点击确认执行。'); return; }
-        document.getElementById('exploit-sqlmap').click();
+        if (!url) { appendChatMessage('youkai', '请先在确认执行窗口内填写利用 URL。'); return; }
+        window.YoukaiUI.showWindow('terminal-exec');
+        var execOut = document.getElementById('terminal-exec-output');
+        if (execOut) execOut.innerHTML = '';
+        appendTerminal([{ type: 'cmd', text: '[EXPLOIT] sqlmap -u ' + url, channel: 'exec' }]);
+        var btn = document.getElementById('report-confirm-exec');
+        if (btn) btn.disabled = true;
+        try {
+          var res = await fetch('/api/execute_exploit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sqlmap', payload: { url: url } }) });
+          var data = await res.json();
+          if (data.terminal && data.terminal.length) {
+            data.terminal.forEach(function(l) { l.channel = 'exec'; });
+            appendTerminal(data.terminal);
+          }
+          if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '执行失败', channel: 'exec' }]);
+        } catch (err) {
+          appendTerminal([{ type: 'error', text: err.message, channel: 'exec' }]);
+        }
+        if (btn) btn.disabled = false;
       });
 
       function readStreamNDJSON(res, onLine) {
@@ -545,6 +616,7 @@
         window.YoukaiUI.showWindow('terminal-recon');
         window.YoukaiUI.showWindow('terminal-analysis');
         window.YoukaiUI.showWindow('terminal-exec');
+        window.YoukaiUI.layoutWindowsUniform();
         window.YoukaiUI.setTaskProgress('START');
         try {
           var res = await fetch('/api/command_stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
@@ -557,10 +629,17 @@
           await readStreamNDJSON(res, function(data) {
             if (data.type === 'reply') {
               appendChatMessage('youkai', data.message || '收到。');
+              appendDebug('START', 'reply: ' + (data.message || ''));
+            } else if (data.type === 'progress') {
+              var ch = data.channel || 'recon';
+              appendTerminalSingle({ type: 'info', text: data.line || '', channel: ch });
+              if (ch !== 'general') appendTerminalSingle({ type: 'info', text: data.line || '', channel: 'general' });
             } else if (data.type === 'thinking') {
               window.YoukaiUI.setTaskProgress(data.step || 'START');
+              appendDebug(data.step, data.message || '');
               appendTerminalSingle({ type: 'thinking', text: '[Thinking] ' + (data.step || '') + ' — ' + (data.message || ''), channel: 'general' });
             } else if (data.type === 'done' && data.ok) {
+              appendDebug('HUMAN_CHECK', 'done');
               if (data.panels) setPanels(data.panels);
               if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
               appendChatMessage('youkai', '分析完成，请查看报告与终端。');
@@ -570,7 +649,10 @@
             }
           });
         } catch (err) {
-          appendChatMessage('youkai', '网络错误：' + (err.message || ''));
+          var errMsg = err && (err.message || String(err));
+          if (!errMsg || errMsg === 'Failed to fetch' || /network error/i.test(errMsg)) errMsg = '网络连接异常，请确认服务已启动且可访问，或稍后重试。';
+          appendChatMessage('youkai', '错误：' + errMsg);
+          appendTerminalSingle({ type: 'error', text: '[ERROR] ' + errMsg, channel: 'general' });
           submitBtn.disabled = false;
           submitBtn.classList.remove('loading');
           return;
@@ -579,28 +661,6 @@
         submitBtn.classList.remove('loading');
       });
       form.addEventListener('submit', function() { if ((input.value || '').trim()) submitBtn.classList.add('loading'); });
-
-      document.getElementById('exploit-sqlmap').addEventListener('click', async function() {
-        var url = (document.getElementById('exploit-url').value || '').trim();
-        if (!url) { appendChatMessage('youkai', '请先填写利用 URL 后再执行。'); return; }
-        window.YoukaiUI.showWindow('terminal-exec');
-        var execOut = document.getElementById('terminal-exec-output');
-        if (execOut) execOut.innerHTML = '';
-        appendTerminal([{ type: 'cmd', text: '[EXPLOIT] sqlmap -u ' + url, channel: 'exec' }]);
-        submitBtn.disabled = true;
-        try {
-          var res = await fetch('/api/execute_exploit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sqlmap', payload: { url: url } }) });
-          var data = await res.json();
-          if (data.terminal && data.terminal.length) {
-            data.terminal.forEach(function(l) { l.channel = 'exec'; });
-            appendTerminal(data.terminal);
-          }
-          if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '执行失败', channel: 'exec' }]);
-        } catch (err) {
-          appendTerminal([{ type: 'error', text: err.message, channel: 'exec' }]);
-        }
-        submitBtn.disabled = false;
-      });
 
       // Kali 工具列表与运行
       fetch('/api/tools').then(function(r) { return r.json(); }).then(function(data) {
