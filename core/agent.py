@@ -7,13 +7,13 @@ from __future__ import annotations
 - START: 接收用户目标与扫描参数
 - RECON: 调用 Nmap 等侦察工具
 - ANALYSIS: 使用 LLM 分析扫描结果
-- DECISION: 使用 LLM 结合红队思维做下一步决策
+- DECISION: 使用 LLM 结合红队思维做下一步决策，并**由 LLM 输出选下一步**（条件边）
 - HUMAN_CHECK: 在执行任何潜在攻击性操作前，生成计划并停在此节点等待人工确认
 """
 
 import json
 from pathlib import Path
-from typing import Any, Dict, TypedDict
+from typing import Any, Dict, Literal, TypedDict
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -153,7 +153,7 @@ def build_kali_agent_graph(llm: BaseChatModel):
             SystemMessage(content=SYSTEM_PROMPT),
             HumanMessage(
                 content=(
-                    "基于以下分析结果，请给出下一步红队行动的决策。\n\n"
+                    "基于以下分析结果，请给出下一步红队行动的决策，并**由你选择下一步**。\n\n"
                     f"用户目标 (Goal): {goal}\n\n"
                     "=== 分析结果 ===\n"
                     f"{analysis}\n"
@@ -162,8 +162,12 @@ def build_kali_agent_graph(llm: BaseChatModel):
                     "{\n"
                     '  \"path\": \"web\" | \"smb\" | \"other\",\n'
                     '  \"reason\": \"string\",\n'
-                    '  \"dangerous\": true/false\n'
-                    "}\n"
+                    '  \"dangerous\": true/false,\n'
+                    '  \"next_step\": \"human_check\" | \"end\"\n'
+                    "}\n\n"
+                    "next_step 含义：\n"
+                    "- human_check：需要人工确认后再执行（有高危利用建议、或建议执行攻击时选此项）。\n"
+                    "- end：当前结论已足够，无需进一步攻击，直接结束并输出报告。\n"
                 )
             ),
         ]
@@ -172,8 +176,24 @@ def build_kali_agent_graph(llm: BaseChatModel):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            data = {"path": "other", "reason": f"LLM 返回的非 JSON 内容：{raw}", "dangerous": True}
+            data = {"path": "other", "reason": f"LLM 返回的非 JSON 内容：{raw}", "dangerous": True, "next_step": "human_check"}
+        if "next_step" not in data:
+            data["next_step"] = "human_check" if data.get("dangerous", True) else "end"
+        if data.get("next_step") not in ("human_check", "end"):
+            data["next_step"] = "human_check" if data.get("dangerous", True) else "end"
         return {"decision": json.dumps(data, ensure_ascii=False, indent=2)}
+
+    def route_after_decision(state: KaliAgentState) -> Literal["human_check", "end"]:
+        """所有决策都过 LLM：根据 DECISION 节点中 LLM 输出的 next_step 选下一步。"""
+        decision_str = state.get("decision") or ""
+        try:
+            data = json.loads(decision_str)
+            next_step = (data.get("next_step") or "").strip().lower()
+            if next_step == "end":
+                return "end"
+        except (json.JSONDecodeError, TypeError):
+            pass
+        return "human_check"
 
     def human_check_node(state: KaliAgentState) -> KaliAgentState:
         goal = state["goal"]
@@ -205,7 +225,11 @@ def build_kali_agent_graph(llm: BaseChatModel):
     workflow.add_edge("START", "RECON")
     workflow.add_edge("RECON", "ANALYSIS")
     workflow.add_edge("ANALYSIS", "DECISION")
-    workflow.add_edge("DECISION", "HUMAN_CHECK")
+    workflow.add_conditional_edges(
+        "DECISION",
+        route_after_decision,
+        path_map={"human_check": "HUMAN_CHECK", "end": END},
+    )
     workflow.add_edge("HUMAN_CHECK", END)
 
     return workflow.compile()

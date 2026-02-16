@@ -15,10 +15,15 @@ from core.agent import create_kali_agent
 from tools.exploitation import run_dangerous_command
 from tools.kali_tools import run_tool
 from web.api_handlers import (
+    build_context_from_state,
     build_panels,
     build_terminal_lines,
+    classify_intent_with_llm,
+    get_last_context,
     get_local_stats,
     parse_goal_target_from_message,
+    reply_followup_with_llm,
+    set_last_context,
 )
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -101,6 +106,7 @@ async def api_command(request: Request) -> JSONResponse:
             },
         )
 
+    set_last_context(build_context_from_state(state))
     local_stats = get_local_stats()
     panels = build_panels(state, local_stats)
     terminal = build_terminal_lines(state)
@@ -220,6 +226,8 @@ async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
                         {"type": "terminal_line", "line": line},
                         ensure_ascii=False,
                     ) + "\n"
+                if final_state:
+                    set_last_context(build_context_from_state(final_state))
                 yield json.dumps(
                     {"type": "done", "ok": True, "panels": panels},
                     ensure_ascii=False,
@@ -230,9 +238,27 @@ async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
             break
 
 
+async def _stream_followup_reply(message: str):
+    """追问分支：仅用 LLM 根据上下文生成简短回复，不跑扫描。"""
+    yield json.dumps(
+        {"type": "thinking", "step": "FOLLOWUP", "message": "理解你的问题…"},
+        ensure_ascii=False,
+    ) + "\n"
+    ctx = get_last_context()
+    reply_text = await asyncio.to_thread(reply_followup_with_llm, message, ctx)
+    yield json.dumps(
+        {"type": "reply", "message": reply_text},
+        ensure_ascii=False,
+    ) + "\n"
+    yield json.dumps(
+        {"type": "done", "ok": True, "followup": True, "panels": None},
+        ensure_ascii=False,
+    ) + "\n"
+
+
 @app.post("/api/command_stream")
 async def api_command_stream(request: Request):
-    """与 Youkai 对话（流式）：实时推送 Thinking 步骤与最终结果，响应为 NDJSON 流。"""
+    """与 Youkai 对话（流式）：先做意图分类，追问则只回复，新任务则跑扫描。"""
     try:
         body = await request.json()
     except Exception:
@@ -242,9 +268,21 @@ async def api_command_stream(request: Request):
         return JSONResponse(status_code=400, content={"error": "请输入指令内容"})
     if not has_llm_configured():
         return JSONResponse(status_code=400, content={"error": "请先在「设置」中配置 LLM API Key"})
+
+    intent = await asyncio.to_thread(classify_intent_with_llm, message)
+    if intent == "followup":
+        return StreamingResponse(
+            _stream_followup_reply(message),
+            media_type="application/x-ndjson",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     goal, target, nmap_arguments = parse_goal_target_from_message(message)
     if not target:
-        return JSONResponse(status_code=400, content={"error": "未从指令中识别到目标，请写明例如：扫描 192.168.1.1"})
+        return JSONResponse(
+            status_code=400,
+            content={"error": "未从指令中识别到目标，请写明例如：扫描 192.168.1.1"},
+        )
 
     return StreamingResponse(
         _stream_command_events(goal, target, nmap_arguments),

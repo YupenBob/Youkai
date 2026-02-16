@@ -93,6 +93,8 @@
       .chat-row.user .chat-bubble { background: rgba(232,121,249,0.25); border: 1px solid rgba(232,121,249,0.4); color: #e879f9; border-bottom-right-radius: 4px; }
       .chat-row.youkai .chat-bubble { background: rgba(167,139,250,0.2); border: 1px solid rgba(167,139,250,0.35); color: #a78bfa; border-bottom-left-radius: 4px; }
       .chat-bubble .chat-label { font-size: 10px; opacity: 0.8; margin-bottom: 4px; }
+      .chat-bubble .chat-terminal-link { color: #22c55e; text-decoration: underline; cursor: pointer; }
+      .chat-bubble .chat-terminal-link:hover { color: #4ade80; }
       #chat-messages { font-family: system-ui, -apple-system, sans-serif; }
       .chat-confirm-block { margin-top: 8px; }
       .chat-confirm-block input { width: 100%; margin-bottom: 6px; padding: 6px 8px; border-radius: 4px; border: 1px solid #475569; background: rgba(15,23,42,0.9); color: #e2e8f0; font-size: 11px; }
@@ -350,9 +352,14 @@
 
       window.YoukaiUI = {
         TASK_ORDER: ['START', 'RECON', 'ANALYSIS', 'DECISION', 'HUMAN_CHECK'],
+        _zIndex: 10,
         showWindow: function(id) {
           var w = document.getElementById('win-' + id);
           if (w) w.classList.remove('kali-window--hidden');
+        },
+        bringToFront: function(id) {
+          var w = document.getElementById('win-' + id);
+          if (w) w.style.zIndex = ++this._zIndex;
         },
         hideWindow: function(id) {
           var w = document.getElementById('win-' + id);
@@ -485,6 +492,7 @@
       var terminal = document.getElementById('terminal-output');
       var chatMessages = document.getElementById('chat-messages');
 
+      var TERMINAL_LINK_MAP = { '「终端 — 执行」':'terminal-exec', '「终端 — 侦察」':'terminal-recon', '「终端 — 分析」':'terminal-analysis', '「终端 — 总览」':'terminal' };
       function appendChatMessage(who, text) {
         if (!chatMessages) return;
         var row = document.createElement('div');
@@ -496,7 +504,27 @@
         label.textContent = who === 'user' ? '我' : 'Youkai';
         bubble.appendChild(label);
         var content = document.createElement('div');
-        content.textContent = text;
+        var re = /(「终端 — (?:执行|侦察|分析|总览)」)/g;
+        var parts = text.split(re);
+        parts.forEach(function(p) {
+          var winId = TERMINAL_LINK_MAP[p];
+          if (winId) {
+            var a = document.createElement('a');
+            a.href = '#';
+            a.className = 'chat-terminal-link';
+            a.textContent = p;
+            a.addEventListener('click', function(e) {
+              e.preventDefault();
+              if (window.YoukaiUI) {
+                window.YoukaiUI.showWindow(winId);
+                window.YoukaiUI.bringToFront(winId);
+              }
+            });
+            content.appendChild(a);
+          } else {
+            content.appendChild(document.createTextNode(p));
+          }
+        });
         bubble.appendChild(content);
         row.appendChild(bubble);
         chatMessages.appendChild(row);

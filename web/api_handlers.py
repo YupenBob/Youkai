@@ -1,9 +1,83 @@
-"""API 逻辑：本机状态、终端流、指令解析。"""
+"""API 逻辑：本机状态、终端流、指令解析、意图分类与追问回复。"""
 
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
+
+# 上一次扫描的上下文，供追问时 LLM 回复使用
+_last_context: dict[str, Any] = {}
+
+
+def get_last_context() -> dict[str, Any]:
+    """获取上一次扫描的上下文（goal、target、report_summary 等）。"""
+    return dict(_last_context)
+
+
+def set_last_context(ctx: dict[str, Any]) -> None:
+    """保存最近一次扫描的上下文，供追问回复使用。"""
+    global _last_context
+    _last_context = dict(ctx) if ctx else {}
+
+
+def build_context_from_state(state: dict[str, Any]) -> dict[str, Any]:
+    """从 Agent 状态提取供追问使用的简短上下文。"""
+    report = (state.get("human_check_message") or "").strip()
+    analysis = (state.get("analysis") or "").strip()
+    summary = report or analysis
+    if len(summary) > 500:
+        summary = summary[:500] + "…"
+    return {
+        "goal": state.get("goal", ""),
+        "target": state.get("target", ""),
+        "report_summary": summary or "暂无",
+    }
+
+
+def classify_intent_with_llm(message: str) -> str:
+    """用 LLM 判断用户意图：scan（新扫描/渗透任务）或 followup（追问/询问/闲聊）。"""
+    from langchain_core.messages import HumanMessage
+    from core.agent import create_llm
+    msg = (message or "").strip()
+    if not msg:
+        return "followup"
+    try:
+        llm = create_llm()
+        prompt = (
+            "用户说：「" + msg + "」\n"
+            "请判断用户意图。若用户是在下达新的扫描/渗透任务（例如要扫描某个目标、对某 IP 做侦察），回复 scan。"
+            "若用户是在追问、询问、吐槽或闲聊（例如问结果在哪、目标文件呢、怎么回事、为什么），回复 followup。"
+            "仅回复一个英文词：scan 或 followup。"
+        )
+        resp = llm.invoke([HumanMessage(content=prompt)])
+        raw = (resp.content or "").strip().lower()
+        if "followup" in raw:
+            return "followup"
+        return "scan"
+    except Exception:
+        return "scan"
+
+
+def reply_followup_with_llm(message: str, context: dict[str, Any]) -> str:
+    """根据用户追问和上次扫描上下文，用 LLM 生成简短回复。"""
+    from langchain_core.messages import HumanMessage
+    from core.agent import create_llm
+    try:
+        llm = create_llm()
+        goal = context.get("goal", "")
+        target = context.get("target", "")
+        report_summary = (context.get("report_summary") or "暂无")[:400]
+        prompt = (
+            "你是 Youkai 红队助手。用户之前可能运行过扫描。"
+            f"上下文：目标={target}，目标描述={goal}。报告摘要：{report_summary}\n"
+            f"用户现在说：「{message}」\n"
+            "请用一两句话简短回复（中文），例如：报告在「Youkai 报告」窗口、执行结果在「终端 — 执行」、或请先下达扫描任务。"
+        )
+        resp = llm.invoke([HumanMessage(content=prompt)])
+        return (resp.content or "请先在对话中下达扫描任务，例如：扫描 192.168.1.1").strip()
+    except Exception:
+        return "请先在对话中下达扫描任务，例如：扫描 192.168.1.1"
 
 
 def get_local_stats() -> dict[str, Any]:
@@ -46,7 +120,7 @@ def parse_goal_target_from_message(message: str) -> tuple[str, str, str]:
     nmap_args = "-sV -Pn"
     if "-p" in msg or "端口" in msg:
         nmap_args = "-sV -Pn -p 1-1000"
-    return goal, target or "127.0.0.1", nmap_args
+    return goal, target, nmap_args
 
 
 def build_terminal_lines(state: dict[str, Any]) -> list[dict[str, Any]]:
@@ -82,6 +156,13 @@ def build_terminal_lines(state: dict[str, Any]) -> list[dict[str, Any]]:
     report = state.get("human_check_message") or ""
     if report:
         lines.append({"type": "success", "text": "[HUMAN_CHECK] 报告已生成，请审阅后点击「确认执行」。", "channel": "exec"})
+    else:
+        try:
+            d = json.loads(decision) if decision else {}
+            if d.get("next_step") == "end":
+                lines.append({"type": "success", "text": "[DECISION] LLM 选择直接结束，无需人工确认。", "channel": "exec"})
+        except (ValueError, TypeError):
+            pass
 
     return lines
 
