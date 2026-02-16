@@ -5,6 +5,7 @@
     <title>YOUKAI — Kali 风格控制台</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
       .zzz-bg { background: linear-gradient(180deg, #0a0a0f 0%, #0d0d14 50%, #0a0a0f 100%); }
       .term-cmd { color: #e879f9; }
@@ -12,6 +13,11 @@
       .term-success { color: #34d399; }
       .term-warn { color: #fbbf24; }
       .term-error { color: #f87171; }
+      .term-thinking { color: #a78bfa; font-style: italic; }
+      #panel-report-content { line-height: 1.5; }
+      #panel-report-content pre { white-space: pre-wrap; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; }
+      #panel-report-content code { background: rgba(0,0,0,0.3); padding: 0 4px; border-radius: 2px; }
+      #panel-report-content ul, #panel-report-content ol { margin: 0.5em 0; padding-left: 1.5em; }
       .youkai-logo { filter: drop-shadow(0 0 12px rgba(232,121,249,0.5)); }
       /* Kali 窗口 */
       .kali-window {
@@ -101,8 +107,8 @@
           <div class="kali-window-resize"></div>
         </div>
         <div class="kali-window" id="win-report" style="left: 284px; top: 184px; width: 532px; height: 200px;" data-window="report">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Youkai 报告</span></div>
-          <div class="kali-window-body"><pre id="panel-report-content">— 下达指令后刷新 —</pre></div>
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Youkai 报告 (支持 Markdown)</span></div>
+          <div class="kali-window-body"><div id="panel-report-content">— 下达指令后刷新 —</div></div>
           <div class="kali-window-resize"></div>
         </div>
         <div class="kali-window" id="win-terminal" style="left: 12px; top: 336px; width: 600px; height: 220px;" data-window="terminal">
@@ -215,7 +221,12 @@
 
       function setPanel(id, text) {
         var el = document.getElementById('panel-' + id + '-content');
-        if (el) el.textContent = text || '—';
+        if (!el) return;
+        if (id === 'report' && typeof marked !== 'undefined') {
+          try { el.innerHTML = marked.parse(text || '—'); } catch (e) { el.textContent = text || '—'; }
+        } else {
+          el.textContent = text || '—';
+        }
       }
 
       function setPanels(panels) {
@@ -229,6 +240,30 @@
         setPanel('report', panels.report);
       }
 
+      function readStreamNDJSON(res, onLine) {
+        var reader = res.body.getReader();
+        var decoder = new TextDecoder();
+        var buf = '';
+        function pump() {
+          return reader.read().then(function(chunk) {
+            if (chunk.done) return;
+            buf += decoder.decode(chunk.value, { stream: true });
+            var lines = buf.split('\n');
+            buf = lines.pop() || '';
+            lines.forEach(function(line) {
+              line = line.trim();
+              if (!line) return;
+              try {
+                var data = JSON.parse(line);
+                onLine(data);
+              } catch (e) {}
+            });
+            return pump();
+          });
+        }
+        return pump();
+      }
+
       form.addEventListener('submit', async function(e) {
         e.preventDefault();
         var msg = (input.value || '').trim();
@@ -237,11 +272,22 @@
         terminal.innerHTML = '';
         appendTerminal([{ type: 'cmd', text: '[YOUKAI] ' + msg }]);
         try {
-          var res = await fetch('/api/command', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
-          var data = await res.json();
-          if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
-          if (data.panels) setPanels(data.panels);
-          if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '请求失败' }]);
+          var res = await fetch('/api/command_stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
+          if (!res.ok) {
+            appendTerminal([{ type: 'error', text: res.status + ' ' + (await res.text()) }]);
+            submitBtn.disabled = false;
+            return;
+          }
+          await readStreamNDJSON(res, function(data) {
+            if (data.type === 'thinking') {
+              appendTerminal([{ type: 'thinking', text: '[Thinking] ' + (data.step || '') + ' — ' + (data.message || '') }]);
+            } else if (data.type === 'done' && data.ok) {
+              if (data.panels) setPanels(data.panels);
+              if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
+            } else if (data.type === 'error') {
+              appendTerminal([{ type: 'error', text: data.message || '错误' }]);
+            }
+          });
         } catch (err) {
           appendTerminal([{ type: 'error', text: err.message || '网络错误' }]);
         }

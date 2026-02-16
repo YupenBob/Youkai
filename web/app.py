@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import threading
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -107,6 +110,95 @@ async def api_command(request: Request) -> JSONResponse:
             "panels": panels,
             "terminal": terminal,
         },
+    )
+
+
+STEP_MESSAGES = {
+    "START": "接收目标，准备侦察…",
+    "RECON": "执行 Nmap 扫描中…",
+    "ANALYSIS": "LLM 分析扫描结果中…",
+    "DECISION": "生成下一步决策中…",
+    "HUMAN_CHECK": "生成人工确认报告…",
+}
+
+
+async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
+    """异步生成器：逐步推送 Thinking 与最终结果（NDJSON 每行一个 JSON）。"""
+    queue: asyncio.Queue = asyncio.Queue()
+    final_state: dict | None = None
+    error: str | None = None
+
+    def run_stream():
+        nonlocal final_state, error
+        try:
+            agent = get_agent()
+            initial = {"goal": goal, "target": target, "nmap_arguments": nmap_arguments}
+            state = dict(initial)
+            try:
+                for chunk in agent.stream(initial, stream_mode="updates"):
+                    for node_name, update in chunk.items():
+                        state = {**state, **update}
+                        loop.call_soon_threadsafe(
+                            queue.put_nowait,
+                            ("step", node_name, STEP_MESSAGES.get(node_name, node_name)),
+                        )
+            except Exception as e:  # noqa: BLE001
+                error = str(e)
+            final_state = state
+        except Exception as e:  # noqa: BLE001
+            error = str(e)
+        loop.call_soon_threadsafe(queue.put_nowait, ("done",))
+
+    loop = asyncio.get_event_loop()
+    thread = threading.Thread(target=run_stream, daemon=True)
+    thread.start()
+
+    while True:
+        try:
+            msg = await asyncio.wait_for(queue.get(), timeout=120.0)
+        except asyncio.TimeoutError:
+            yield json.dumps({"type": "error", "message": "执行超时"}, ensure_ascii=False) + "\n"
+            break
+        if msg[0] == "step":
+            _, node_name, message = msg
+            yield json.dumps(
+                {"type": "thinking", "step": node_name, "message": message},
+                ensure_ascii=False,
+            ) + "\n"
+        elif msg[0] == "done":
+            if error:
+                yield json.dumps({"type": "error", "message": error}, ensure_ascii=False) + "\n"
+                break
+            local_stats = get_local_stats()
+            panels = build_panels(final_state or {}, local_stats)
+            terminal = build_terminal_lines(final_state or {})
+            yield json.dumps(
+                {"type": "done", "ok": True, "panels": panels, "terminal": terminal},
+                ensure_ascii=False,
+            ) + "\n"
+            break
+
+
+@app.post("/api/command_stream")
+async def api_command_stream(request: Request):
+    """与 Youkai 对话（流式）：实时推送 Thinking 步骤与最终结果，响应为 NDJSON 流。"""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "无效 JSON"})
+    message = (body.get("message") or "").strip()
+    if not message:
+        return JSONResponse(status_code=400, content={"error": "请输入指令内容"})
+    if not has_llm_configured():
+        return JSONResponse(status_code=400, content={"error": "请先在「设置」中配置 LLM API Key"})
+    goal, target, nmap_arguments = parse_goal_target_from_message(message)
+    if not target:
+        return JSONResponse(status_code=400, content={"error": "未从指令中识别到目标，请写明例如：扫描 192.168.1.1"})
+
+    return StreamingResponse(
+        _stream_command_events(goal, target, nmap_arguments),
+        media_type="application/x-ndjson",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
