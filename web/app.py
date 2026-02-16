@@ -214,8 +214,14 @@ async def _stream_command_events(goal: str, target: str, nmap_arguments: str):
                 local_stats = get_local_stats()
                 panels = build_panels(final_state or {}, local_stats)
                 terminal = build_terminal_lines(final_state or {})
+                # 终端流式输出：逐行推送，前端可实时跟踪
+                for line in terminal:
+                    yield json.dumps(
+                        {"type": "terminal_line", "line": line},
+                        ensure_ascii=False,
+                    ) + "\n"
                 yield json.dumps(
-                    {"type": "done", "ok": True, "panels": panels, "terminal": terminal},
+                    {"type": "done", "ok": True, "panels": panels},
                     ensure_ascii=False,
                 ) + "\n"
                 break

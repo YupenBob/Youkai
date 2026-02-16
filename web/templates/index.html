@@ -94,6 +94,10 @@
       .chat-row.youkai .chat-bubble { background: rgba(167,139,250,0.2); border: 1px solid rgba(167,139,250,0.35); color: #a78bfa; border-bottom-left-radius: 4px; }
       .chat-bubble .chat-label { font-size: 10px; opacity: 0.8; margin-bottom: 4px; }
       #chat-messages { font-family: system-ui, -apple-system, sans-serif; }
+      .chat-confirm-block { margin-top: 8px; }
+      .chat-confirm-block input { width: 100%; margin-bottom: 6px; padding: 6px 8px; border-radius: 4px; border: 1px solid #475569; background: rgba(15,23,42,0.9); color: #e2e8f0; font-size: 11px; }
+      .chat-confirm-block button { padding: 6px 12px; border-radius: 4px; border: 1px solid #22c55e; background: rgba(34,197,94,0.2); color: #22c55e; font-size: 11px; cursor: pointer; }
+      .chat-confirm-block button:hover { background: rgba(34,197,94,0.35); }
       .kali-window-body { flex: 1; overflow: auto; padding: 8px; font-size: 11px; font-family: monospace; color: #a6adc8; }
       .kali-window-body pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
       .kali-window-resize {
@@ -106,6 +110,15 @@
         background: linear-gradient(135deg, transparent 50%, #45475a 50%);
       }
       .summary-card { background: rgba(0,0,0,0.3); border: 1px solid rgba(0,255,100,0.2); border-radius: 6px; padding: 8px; font-size: 11px; color: #94a3b8; white-space: pre-wrap; }
+      /* 甲方-黑客对话主窗口：居中下、高亮黄框 */
+      .kali-window--chat { border: 2px solid #eab308; box-shadow: 0 0 20px rgba(234,179,8,0.4); }
+      .kali-window--chat .kali-window-title { background: linear-gradient(90deg, #313244 0%, rgba(234,179,8,0.15) 100%); border-bottom-color: rgba(234,179,8,0.5); }
+      .terminal-live { font-size: 9px; color: #22c55e; margin-left: 6px; animation: live-blink 1.5s ease-in-out infinite; }
+      .terminal-live.off { opacity: 0.4; animation: none; }
+      @keyframes live-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      .terminal-follow-wrap { position: relative; }
+      .btn-follow-bottom { position: absolute; bottom: 8px; right: 8px; font-size: 10px; padding: 4px 8px; border-radius: 4px; border: 1px solid #22c55e; background: rgba(34,197,94,0.2); color: #22c55e; cursor: pointer; display: none; z-index: 2; }
+      .btn-follow-bottom.visible { display: block; }
       #command-submit.loading { pointer-events: none; opacity: 0.85; animation: btn-pulse 1s ease-in-out infinite; }
       @keyframes btn-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(232,121,249,0.4); } 50% { box-shadow: 0 0 12px 4px rgba(232,121,249,0.2); } }
     </style>
@@ -143,7 +156,6 @@
                 <button type="button" data-show="target" title="目标">目标</button>
                 <button type="button" data-show="tracking" title="跟踪">跟踪</button>
                 <button type="button" data-show="tools" title="Kali 工具">工具</button>
-              <button type="button" data-show="confirm" title="确认执行">确认</button>
               </div>
               <a href="/settings" class="text-xs text-slate-400 hover:text-fuchsia-400 px-2 py-1 rounded border border-slate-600">设置</a>
             </div>
@@ -166,78 +178,80 @@
 
       <!-- 桌面：对话窗口默认显示，其余按需弹出；窗口带 关闭/最小化/最大化 -->
       <div id="desktop" class="flex-1 relative overflow-hidden" style="min-height: 400px;">
-        <!-- 与 Youkai 对话（小窗口，默认显示） -->
-        <div class="kali-window" id="win-chat" style="left: 12px; top: 72px; width: 380px; height: 220px;" data-window="chat">
+        <!-- 甲方-黑客对话主窗口：居中下、稍大、高亮黄框，明确任务目标 / 实时汇报 / 完成后汇报 -->
+        <div class="kali-window kali-window--chat" id="win-chat" style="left: 50%; top: auto; bottom: 16px; width: 520px; height: 300px; transform: translateX(-50%);" data-window="chat">
           <div class="kali-window-title">
             <span class="btn btn-close" title="关闭"></span><span class="btn btn-min" title="最小化"></span><span class="btn btn-max" title="最大化"></span>
-            <span class="name">与 Youkai 对话</span>
+            <span class="name">任务下达 — 与 Youkai 对话（明确目标 · 过程实时汇报 · 完成后汇报）</span>
           </div>
           <div class="kali-window-body flex flex-col p-2">
             <div id="chat-messages" class="flex-1 overflow-auto mb-2 min-h-0 text-xs space-y-1"></div>
             <form id="command-form" class="flex gap-2 flex-shrink-0">
-              <input type="text" id="command-input" placeholder="输入指令，如：扫描 192.168.1.1" class="flex-1 rounded border border-slate-600 bg-slate-900/80 px-2 py-1.5 text-sm text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none" autocomplete="off" />
+              <input type="text" id="command-input" placeholder="下达任务目标，如：获取 flag{...}、攻克 CVE-2021-41277 靶标、扫描并渗透某 URL…" class="flex-1 rounded border border-slate-600 bg-slate-900/80 px-2 py-1.5 text-sm text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none" autocomplete="off" />
               <button type="submit" id="command-submit" class="rounded bg-fuchsia-600 hover:bg-fuchsia-500 px-3 py-1.5 text-sm font-medium text-white">发送</button>
             </form>
           </div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-local" style="left: 12px; top: 12px; width: 260px; height: 160px;" data-window="local">
+        <div class="kali-window kali-window--hidden" id="win-local" style="left: 24px; top: 24px; width: 260px; height: 160px;" data-window="local">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">本机性能</span></div>
           <div class="kali-window-body"><pre id="panel-local-content">—</pre></div>
           <div class="kali-window-resize" title="拖动调整大小"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-target" style="left: 284px; top: 12px; width: 260px; height: 160px;" data-window="target">
+        <div class="kali-window kali-window--hidden" id="win-target" style="left: 52px; top: 48px; width: 260px; height: 160px;" data-window="target">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">目标情况</span></div>
           <div class="kali-window-body"><pre id="panel-target-content">—</pre></div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-ports" style="left: 556px; top: 12px; width: 260px; height: 160px;" data-window="ports">
+        <div class="kali-window kali-window--hidden" id="win-ports" style="left: 80px; top: 72px; width: 260px; height: 160px;" data-window="ports">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">目标端口</span></div>
           <div class="kali-window-body"><pre id="panel-ports-content">—</pre></div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-tracking" style="left: 12px; top: 184px; width: 260px; height: 140px;" data-window="tracking">
+        <div class="kali-window kali-window--hidden" id="win-tracking" style="left: 108px; top: 96px; width: 260px; height: 140px;" data-window="tracking">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">实施跟踪</span></div>
           <div class="kali-window-body"><pre id="panel-tracking-content">—</pre></div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-report" style="left: 284px; top: 184px; width: 532px; height: 200px;" data-window="report">
+        <div class="kali-window kali-window--hidden" id="win-report" style="left: 136px; top: 120px; width: 500px; height: 200px;" data-window="report">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Youkai 报告</span></div>
           <div class="kali-window-body"><div id="panel-report-content">—</div></div>
           <div class="kali-window-resize"></div>
         </div>
-        <!-- 确认执行：单窗口，含利用 URL 与确认按钮 -->
-        <div class="kali-window kali-window--hidden" id="win-confirm" style="left: 828px; top: 184px; width: 260px; height: 160px;" data-window="confirm">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">确认执行</span></div>
-          <div class="kali-window-body flex flex-col p-3">
-            <p class="text-slate-400 text-xs mb-2">审阅报告后填写目标 URL，点击确认执行渗透。</p>
-            <input type="text" id="exploit-url" placeholder="http://target/page?id=1" class="w-full rounded border border-slate-600 bg-slate-900/80 px-2 py-1.5 text-xs text-white placeholder-slate-500 focus:border-fuchsia-500 focus:outline-none mb-3" />
-            <button type="button" class="btn-exec w-full py-2 rounded font-medium" id="report-confirm-exec">确认执行 (sqlmap)</button>
+        <!-- 多终端：侦察 / 分析 / 执行 / 总览（流式输出 + 实时跟踪） -->
+        <div class="kali-window kali-window--hidden" id="win-terminal-recon" style="left: 192px; top: 168px; width: 320px; height: 180px;" data-window="terminal-recon">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 侦察</span><span class="terminal-live" id="live-recon">● 实时</span></div>
+          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 terminal-follow-wrap">
+            <pre id="terminal-recon-output" class="m-0 text-xs"></pre>
+            <button type="button" class="btn-follow-bottom" data-target="terminal-recon-output">回到底部</button>
           </div>
           <div class="kali-window-resize"></div>
         </div>
-        <!-- 多终端：侦察 / 分析 / 执行 / 总览 -->
-        <div class="kali-window kali-window--hidden" id="win-terminal-recon" style="left: 12px; top: 80px; width: 320px; height: 180px;" data-window="terminal-recon">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 侦察</span></div>
-          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0"><pre id="terminal-recon-output" class="m-0 text-xs"></pre></div>
+        <div class="kali-window kali-window--hidden" id="win-terminal-analysis" style="left: 220px; top: 192px; width: 320px; height: 180px;" data-window="terminal-analysis">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 分析</span><span class="terminal-live" id="live-analysis">● 实时</span></div>
+          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 terminal-follow-wrap">
+            <pre id="terminal-analysis-output" class="m-0 text-xs"></pre>
+            <button type="button" class="btn-follow-bottom" data-target="terminal-analysis-output">回到底部</button>
+          </div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-terminal-analysis" style="left: 344px; top: 80px; width: 320px; height: 180px;" data-window="terminal-analysis">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 分析</span></div>
-          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0"><pre id="terminal-analysis-output" class="m-0 text-xs"></pre></div>
+        <div class="kali-window kali-window--hidden" id="win-terminal-exec" style="left: 248px; top: 216px; width: 320px; height: 180px;" data-window="terminal-exec">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 执行</span><span class="terminal-live" id="live-exec">● 实时</span></div>
+          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 terminal-follow-wrap">
+            <pre id="terminal-exec-output" class="m-0 text-xs"></pre>
+            <button type="button" class="btn-follow-bottom" data-target="terminal-exec-output">回到底部</button>
+          </div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-terminal-exec" style="left: 676px; top: 80px; width: 320px; height: 180px;" data-window="terminal-exec">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 执行</span></div>
-          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0"><pre id="terminal-exec-output" class="m-0 text-xs"></pre></div>
+        <div class="kali-window kali-window--hidden" id="win-terminal" style="left: 276px; top: 240px; width: 560px; height: 200px;" data-window="terminal">
+          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 总览</span><span class="terminal-live" id="live-general">● 实时</span></div>
+          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 flex-1 terminal-follow-wrap">
+            <pre id="terminal-output" class="m-0 text-xs"><span class="term-info">等待指令…</span></pre>
+            <button type="button" class="btn-follow-bottom" data-target="terminal-output">回到底部</button>
+          </div>
           <div class="kali-window-resize"></div>
         </div>
-        <div class="kali-window kali-window--hidden" id="win-terminal" style="left: 12px; top: 272px; width: 600px; height: 200px;" data-window="terminal">
-          <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">终端 — 总览</span></div>
-          <div class="kali-window-body p-2 overflow-auto bg-black/50 min-h-0 flex-1"><pre id="terminal-output" class="m-0 text-xs"><span class="term-info">等待指令…</span></pre></div>
-          <div class="kali-window-resize"></div>
-        </div>
-        <div class="kali-window kali-window--hidden" id="win-tools" style="left: 624px; top: 12px; width: 320px; height: 380px;" data-window="tools">
+        <div class="kali-window kali-window--hidden" id="win-tools" style="left: 304px; top: 264px; width: 320px; height: 380px;" data-window="tools">
           <div class="kali-window-title"><span class="btn btn-close"></span><span class="btn btn-min"></span><span class="btn btn-max"></span><span class="name">Kali 工具</span></div>
           <div class="kali-window-body overflow-auto" id="tools-list">
             <p class="text-slate-500 text-xs mb-2">加载中…</p>
@@ -247,7 +261,7 @@
       </div>
 
       <footer class="flex-shrink-0 border-t border-slate-800 px-4 py-2 text-xs text-slate-500" style="background: rgba(10,10,15,0.95);">
-        YOUKAI — 在「与 Youkai 对话」下发指令，在「确认执行」窗口填写 URL 并执行利用。
+        YOUKAI — 甲方在下方对话窗口明确任务目标（如 Flag、靶标），Youkai 自主决策、过程实时汇报、完成后汇报；确认执行渗透在对话内填写 URL 并点击确认。
       </footer>
     </div>
 
@@ -269,6 +283,8 @@
             var dx = e.clientX - win.offsetLeft;
             var dy = e.clientY - win.offsetTop;
             function move(e2) {
+              win.style.transform = '';
+              win.style.bottom = 'auto';
               var l = e2.clientX - dx;
               var t = e2.clientY - dy;
               var r = desktop.getBoundingClientRect();
@@ -318,7 +334,11 @@
           if (maxBtn) maxBtn.addEventListener('click', function(e) {
             e.stopPropagation();
             if (win.classList.contains('kali-window--maximized')) { win.classList.remove('kali-window--maximized'); win.style.width = ''; win.style.height = ''; }
-            else { win.classList.add('kali-window--maximized'); win.style.width = '90%'; win.style.height = '80%'; win.style.left = '5%'; win.style.top = '5%'; }
+            else {
+              win.style.transform = '';
+              win.style.bottom = 'auto';
+              win.classList.add('kali-window--maximized'); win.style.width = '90%'; win.style.height = '80%'; win.style.left = '5%'; win.style.top = '5%';
+            }
           });
         }
         desktop.querySelectorAll('.kali-window').forEach(function(win) {
@@ -391,7 +411,7 @@
             btn.classList.toggle('has-content', ids && ids.indexOf(id) !== -1);
           });
         },
-        WINDOW_ORDER: ['chat','local','target','ports','tracking','report','confirm','terminal-recon','terminal-analysis','terminal-exec','terminal','tools'],
+        WINDOW_ORDER: ['chat','local','target','ports','tracking','report','terminal-recon','terminal-analysis','terminal-exec','terminal','tools'],
         layoutWindowsUniform: function() {
           var desktop = document.getElementById('desktop');
           if (!desktop) return;
@@ -483,6 +503,37 @@
         chatMessages.scrollTop = chatMessages.scrollHeight;
       }
 
+      function appendConfirmInChat() {
+        if (!chatMessages) return;
+        var row = document.createElement('div');
+        row.className = 'chat-row youkai';
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        var label = document.createElement('div');
+        label.className = 'chat-label';
+        label.textContent = 'Youkai';
+        bubble.appendChild(label);
+        var text = document.createElement('div');
+        text.textContent = '若需执行渗透，请填写目标 URL 并点击下方确认执行：';
+        bubble.appendChild(text);
+        var block = document.createElement('div');
+        block.className = 'chat-confirm-block';
+        var inp = document.createElement('input');
+        inp.type = 'text';
+        inp.className = 'chat-exploit-url';
+        inp.placeholder = 'http://target/page?id=1';
+        block.appendChild(inp);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chat-confirm-exec-btn';
+        btn.textContent = '确认执行 (sqlmap)';
+        block.appendChild(btn);
+        bubble.appendChild(block);
+        row.appendChild(bubble);
+        chatMessages.appendChild(row);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
+
       var channelToId = { recon: 'terminal-recon-output', analysis: 'terminal-analysis-output', exec: 'terminal-exec-output', general: 'terminal-output' };
       function stepToChannel(step) {
         if (!step) return 'general';
@@ -497,6 +548,33 @@
         appendTerminalSingle({ type: 'info', text: text, channel: ch });
         if (ch !== 'general') appendTerminalSingle({ type: 'info', text: text, channel: 'general' });
       }
+      function getTerminalScrollContainer(preEl) {
+        var wrap = preEl && preEl.parentElement;
+        return wrap && wrap.classList && wrap.classList.contains('terminal-follow-wrap') ? wrap.parentElement : (preEl && preEl.parentElement);
+      }
+      function scrollTerminalToBottom(preEl) {
+        var container = getTerminalScrollContainer(preEl);
+        if (container) container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        var btn = preEl && preEl.parentElement && preEl.parentElement.querySelector('.btn-follow-bottom');
+        if (btn) btn.classList.remove('visible');
+      }
+      function setupTerminalFollow(preId) {
+        var preEl = document.getElementById(preId);
+        if (!preEl) return;
+        var container = getTerminalScrollContainer(preEl);
+        var btn = preEl.parentElement && preEl.parentElement.querySelector('.btn-follow-bottom');
+        if (!container || !btn) return;
+        container.addEventListener('scroll', function() {
+          var atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 20;
+          btn.classList.toggle('visible', !atBottom);
+        });
+        btn.addEventListener('click', function() {
+          container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+          btn.classList.remove('visible');
+        });
+      }
+      ['terminal-recon-output','terminal-analysis-output','terminal-exec-output','terminal-output'].forEach(setupTerminalFollow);
+
       function appendTerminal(lines) {
         if (!lines || !lines.length) return;
         lines.forEach(function(line) {
@@ -507,9 +585,9 @@
           span.className = 'term-' + (line.type || 'info');
           span.textContent = line.text + '\n';
           el.appendChild(span);
-          el.scrollTop = el.scrollHeight;
+          scrollTerminalToBottom(el);
         });
-        if (terminal && terminal.parentNode) terminal.scrollTop = terminal.scrollHeight;
+        if (terminal && terminal.parentNode) scrollTerminalToBottom(terminal);
       }
       function appendTerminalSingle(line) {
         appendTerminal([line]);
@@ -548,22 +626,24 @@
         if (ti) withContent.push('target');
         if (panels.ports && panels.ports !== '暂无') withContent.push('ports');
         if (panels.tracking) withContent.push('tracking');
-        if (panels.report && panels.report !== '暂无报告') { withContent.push('report'); withContent.push('confirm'); }
+        if (panels.report && panels.report !== '暂无报告') withContent.push('report');
         withContent.push('terminal', 'terminal-recon', 'terminal-analysis', 'terminal-exec');
         window.YoukaiUI.markLauncherHasContent(withContent);
         withContent.forEach(function(id) { window.YoukaiUI.showWindow(id); });
-        window.YoukaiUI.layoutWindowsUniform();
       }
 
-      document.getElementById('report-confirm-exec').addEventListener('click', async function() {
-        var url = (document.getElementById('exploit-url').value || '').trim();
-        if (!url) { appendChatMessage('youkai', '请先在确认执行窗口内填写利用 URL。'); return; }
+      chatMessages.addEventListener('click', async function(e) {
+        var btn = e.target && e.target.classList && e.target.classList.contains('chat-confirm-exec-btn') ? e.target : null;
+        if (!btn) return;
+        var block = btn.closest('.chat-confirm-block');
+        var inp = block && block.querySelector('.chat-exploit-url');
+        var url = (inp && inp.value && inp.value.trim()) ? inp.value.trim() : '';
+        if (!url) { appendChatMessage('youkai', '请先在上方框内填写利用 URL 再点击确认执行。'); return; }
+        btn.disabled = true;
         window.YoukaiUI.showWindow('terminal-exec');
         var execOut = document.getElementById('terminal-exec-output');
         if (execOut) execOut.innerHTML = '';
         appendTerminal([{ type: 'cmd', text: '[EXPLOIT] sqlmap -u ' + url, channel: 'exec' }]);
-        var btn = document.getElementById('report-confirm-exec');
-        if (btn) btn.disabled = true;
         try {
           var res = await fetch('/api/execute_exploit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'sqlmap', payload: { url: url } }) });
           var data = await res.json();
@@ -572,10 +652,12 @@
             appendTerminal(data.terminal);
           }
           if (!data.ok) appendTerminal([{ type: 'error', text: data.error || '执行失败', channel: 'exec' }]);
+          appendChatMessage('youkai', data.ok ? '已执行 sqlmap，请查看「终端 — 执行」。' : ('执行失败：' + (data.error || '')));
         } catch (err) {
           appendTerminal([{ type: 'error', text: err.message, channel: 'exec' }]);
+          appendChatMessage('youkai', '网络错误：' + (err.message || ''));
         }
-        if (btn) btn.disabled = false;
+        btn.disabled = false;
       });
 
       function readStreamNDJSON(res, onLine) {
@@ -616,7 +698,6 @@
         window.YoukaiUI.showWindow('terminal-recon');
         window.YoukaiUI.showWindow('terminal-analysis');
         window.YoukaiUI.showWindow('terminal-exec');
-        window.YoukaiUI.layoutWindowsUniform();
         window.YoukaiUI.setTaskProgress('START');
         try {
           var res = await fetch('/api/command_stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: msg }) });
@@ -638,11 +719,13 @@
               window.YoukaiUI.setTaskProgress(data.step || 'START');
               appendDebug(data.step, data.message || '');
               appendTerminalSingle({ type: 'thinking', text: '[Thinking] ' + (data.step || '') + ' — ' + (data.message || ''), channel: 'general' });
+            } else if (data.type === 'terminal_line' && data.line) {
+              appendTerminal([data.line]);
             } else if (data.type === 'done' && data.ok) {
               appendDebug('HUMAN_CHECK', 'done');
               if (data.panels) setPanels(data.panels);
-              if (data.terminal && data.terminal.length) appendTerminal(data.terminal);
               appendChatMessage('youkai', '分析完成，请查看报告与终端。');
+              appendConfirmInChat();
             } else if (data.type === 'error') {
               appendChatMessage('youkai', '错误：' + (data.message || '未知'));
               appendTerminalSingle({ type: 'error', text: data.message || '错误', channel: 'general' });
